@@ -1,7 +1,0 @@
-{
-  "permissions": {
-    "allow": [
-      "Bash(chmod +x /Users/tobyanscombe/Documents/DevWork/claude/ubuntu-user-creation/collect_accounts.sh)"
-    ]
-  }
-}
