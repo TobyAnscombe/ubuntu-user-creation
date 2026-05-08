@@ -1,0 +1,13 @@
+---
+- name: Run validation
+  ansible.builtin.include_tasks: validate.yml
+
+- name: Manage account
+  ansible.builtin.include_tasks: user.yml
+
+- name: Configure SSH key
+  ansible.builtin.include_tasks: ssh.yml
+  when: not manage_user_is_service_account
+
+- name: Configure sudo access
+  ansible.builtin.include_tasks: sudo.yml

@@ -1,0 +1,26 @@
+---
+- name: Grant passwordless sudo access
+  ansible.builtin.copy:
+    content: "{{ manage_user_name }} ALL=(ALL:ALL) NOPASSWD: ALL\n"
+    dest: "/etc/sudoers.d/{{ manage_user_name }}"
+    owner: root
+    group: root
+    mode: "0440"
+    validate: "/usr/sbin/visudo -cf %s"
+  when:
+    - manage_user_state == 'present'
+    - manage_user_sudo | bool
+
+- name: Remove sudoers entry when sudo access is not required
+  ansible.builtin.file:
+    path: "/etc/sudoers.d/{{ manage_user_name }}"
+    state: absent
+  when:
+    - manage_user_state == 'present'
+    - not manage_user_sudo | bool
+
+- name: Remove sudoers entry for absent user
+  ansible.builtin.file:
+    path: "/etc/sudoers.d/{{ manage_user_name }}"
+    state: absent
+  when: manage_user_state == 'absent'

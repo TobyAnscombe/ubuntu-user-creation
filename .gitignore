@@ -1,0 +1,39 @@
+# macOS
+.DS_Store
+
+# Ansible retry files
+*.retry
+
+# Ansible cache and fact cache
+.ansible/
+fact_cache/
+
+# Collections installed locally (installed via requirements.yml, not committed)
+collections/
+
+# Ansible Vault password files
+.vault_pass
+.vault_password
+vault_password_file
+
+# Local inventory overrides (host-specific, not committed)
+inventory.local.ini
+inventory.local.yml
+hosts.local
+
+# Var files contain user lists and SSH keys — use vars/*.example.yml as templates
+vars/users.yml
+vars/service_accounts.yml
+
+# Python virtualenv (used to install Ansible locally)
+venv/
+.venv/
+__pycache__/
+*.pyc
+
+# Editor files
+.vscode/
+.idea/
+*.swp
+*.swo
+*~

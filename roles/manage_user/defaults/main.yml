@@ -1,0 +1,33 @@
+---
+# Global defaults applied to all entries unless overridden per-item.
+manage_user_default_home_base: /home
+manage_user_default_shell: /bin/bash
+manage_user_service_account_default_shell: /usr/sbin/nologin
+
+# Regular interactive user accounts.
+# Each entry supports:
+#   name               (required) Login name
+#   ssh_public_key     (required) Public key string
+#   state              present | absent  (default: present)
+#   uid                integer           (default: auto-assigned)
+#   sudo               true | false      (default: false)
+#   groups             list              (default: [])
+#   shell                                (default: manage_user_default_shell)
+#   home                                 (default: manage_user_default_home_base/<name>)
+#   comment                              (default: "")
+#   ssh_key_exclusive  true | false      (default: false)
+#   remove_home        true | false      (default: false)
+manage_user_accounts: []
+
+# Non-interactive service accounts (no SSH key, nologin shell, system UID).
+# Each entry supports:
+#   name               (required) Account name
+#   state              present | absent  (default: present)
+#   uid                integer           (default: auto-assigned)
+#   comment                              (default: "")
+#   groups             list              (default: [])
+#   shell                                (default: manage_user_service_account_default_shell)
+#   home                                 (default: manage_user_default_home_base/<name>)
+#   sudo               true | false      (default: false)
+#   remove_home        true | false      (default: false)
+manage_user_service_accounts: []

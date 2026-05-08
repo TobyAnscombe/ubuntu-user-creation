@@ -1,0 +1,22 @@
+---
+- name: Create or update user account
+  ansible.builtin.user:
+    name: "{{ manage_user_name }}"
+    state: present
+    shell: "{{ manage_user_shell }}"
+    home: "{{ manage_user_home }}"
+    comment: "{{ manage_user_comment }}"
+    groups: "{{ manage_user_groups }}"
+    append: "{{ manage_user_append_groups }}"
+    uid: "{{ manage_user_uid }}"
+    password_lock: true
+    create_home: true
+    system: "{{ manage_user_system }}"
+  when: manage_user_state == 'present'
+
+- name: Remove user account
+  ansible.builtin.user:
+    name: "{{ manage_user_name }}"
+    state: absent
+    remove: "{{ manage_user_remove_home }}"
+  when: manage_user_state == 'absent'

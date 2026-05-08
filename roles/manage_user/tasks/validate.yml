@@ -1,0 +1,17 @@
+---
+- name: Validate manage_user_name is set
+  ansible.builtin.assert:
+    that:
+      - manage_user_name is defined
+      - manage_user_name | length > 0
+    fail_msg: "manage_user_name must be defined and non-empty"
+
+- name: Validate SSH public key is provided
+  ansible.builtin.assert:
+    that:
+      - manage_user_ssh_public_key is defined
+      - manage_user_ssh_public_key | length > 0
+    fail_msg: "manage_user_ssh_public_key is required when manage_user_state is 'present'"
+  when:
+    - manage_user_state == 'present'
+    - not manage_user_is_service_account

@@ -1,0 +1,42 @@
+---
+- name: Manage user account - {{ item.name }}
+  ansible.builtin.include_tasks: manage_user.yml
+  vars:
+    manage_user_name: "{{ item.name }}"
+    manage_user_state: "{{ item.state | default('present') }}"
+    manage_user_shell: "{{ item.shell | default(manage_user_default_shell) }}"
+    manage_user_home: "{{ item.home | default(manage_user_default_home_base + '/' + item.name) }}"
+    manage_user_comment: "{{ item.comment | default('') }}"
+    manage_user_groups: "{{ item.groups | default([]) }}"
+    manage_user_append_groups: "{{ item.append_groups | default(true) }}"
+    manage_user_sudo: "{{ item.sudo | default(false) }}"
+    manage_user_uid: "{{ item.uid | default(omit) }}"
+    manage_user_ssh_public_key: "{{ item.ssh_public_key | default('') }}"
+    manage_user_ssh_key_exclusive: "{{ item.ssh_key_exclusive | default(false) }}"
+    manage_user_remove_home: "{{ item.remove_home | default(false) }}"
+    manage_user_system: false
+    manage_user_is_service_account: false
+  loop: "{{ manage_user_accounts }}"
+  loop_control:
+    label: "{{ item.name }}"
+
+- name: Manage service account - {{ item.name }}
+  ansible.builtin.include_tasks: manage_user.yml
+  vars:
+    manage_user_name: "{{ item.name }}"
+    manage_user_state: "{{ item.state | default('present') }}"
+    manage_user_shell: "{{ item.shell | default(manage_user_service_account_default_shell) }}"
+    manage_user_home: "{{ item.home | default(manage_user_default_home_base + '/' + item.name) }}"
+    manage_user_comment: "{{ item.comment | default('') }}"
+    manage_user_groups: "{{ item.groups | default([]) }}"
+    manage_user_append_groups: "{{ item.append_groups | default(true) }}"
+    manage_user_sudo: "{{ item.sudo | default(false) }}"
+    manage_user_uid: "{{ item.uid | default(omit) }}"
+    manage_user_ssh_public_key: ""
+    manage_user_ssh_key_exclusive: false
+    manage_user_remove_home: "{{ item.remove_home | default(false) }}"
+    manage_user_system: true
+    manage_user_is_service_account: true
+  loop: "{{ manage_user_service_accounts }}"
+  loop_control:
+    label: "{{ item.name }}"

@@ -1,0 +1,16 @@
+---
+- name: Manage Ubuntu users and service accounts
+  hosts: all
+  become: true
+
+  vars:
+    ansible_python_interpreter: /usr/bin/python3
+
+  vars_files:
+    - vars/users.yml
+    - vars/service_accounts.yml
+
+  tasks:
+    - name: Manage user accounts and service accounts
+      ansible.builtin.include_role:
+        name: manage_user

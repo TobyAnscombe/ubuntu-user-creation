@@ -1,0 +1,8 @@
+---
+- name: Configure SSH authorized key
+  ansible.posix.authorized_key:
+    user: "{{ manage_user_name }}"
+    state: present
+    key: "{{ manage_user_ssh_public_key }}"
+    exclusive: "{{ manage_user_ssh_key_exclusive }}"
+  when: manage_user_state == 'present'
