@@ -1,4 +1,15 @@
 ---
+- name: Ensure supplementary groups exist
+  ansible.builtin.group:
+    name: "{{ group_item }}"
+    state: present
+  loop: "{{ manage_user_groups }}"
+  loop_control:
+    loop_var: group_item
+  when:
+    - manage_user_state == 'present'
+    - manage_user_groups | length > 0
+
 - name: Create or update user account
   ansible.builtin.user:
     name: "{{ manage_user_name }}"

@@ -156,16 +156,17 @@ The role's tasks are split into discrete files:
 | `tasks/main.yml` | Loops over `manage_user_accounts` and `manage_user_service_accounts`, passing resolved vars to `manage_user.yml` for each entry |
 | `tasks/manage_user.yml` | Per-entry wrapper — sequences validate, user, ssh, and sudo |
 | `tasks/validate.yml` | Asserts required fields are present |
-| `tasks/user.yml` | Creates or removes the account via the `user` module |
+| `tasks/user.yml` | Ensures supplementary groups exist, then creates or removes the account via the `user` module |
 | `tasks/ssh.yml` | Configures the authorized key (skipped for service accounts) |
 | `tasks/sudo.yml` | Grants or removes `NOPASSWD` sudo access |
 
 ### Creating or updating an account (`state: present`)
 
 1. **Validation** — asserts `name` is non-empty; for regular users, also asserts `ssh_public_key` is provided.
-2. **User account** — creates or reconciles the account with the declared shell, home, comment, and groups. Password login is locked (`password_lock: true`). Service accounts are created as system accounts (`system: true`).
-3. **SSH authorized key** — writes the public key to `<home>/.ssh/authorized_keys` using an explicit path derived from `manage_user_home`. Skipped entirely for service accounts. If `ssh_key_exclusive: true`, all other keys in the file are removed. Using an explicit path means this task behaves correctly in `--check` mode even when the account does not yet exist on the target host.
-4. **Sudo access** — if `sudo: true`, writes `/etc/sudoers.d/<name>` validated with `visudo -cf` before placement. If `sudo: false`, removes any existing sudoers entry for the account.
+2. **Supplementary groups** — any group listed under `groups` that does not already exist on the host is created before the account is configured. This allows groups like `docker` to be declared even when the software that would normally create them (e.g. Docker) has not yet been installed.
+3. **User account** — creates or reconciles the account with the declared shell, home, comment, and groups. Password login is locked (`password_lock: true`). Service accounts are created as system accounts (`system: true`).
+4. **SSH authorized key** — writes the public key to `<home>/.ssh/authorized_keys` using an explicit path derived from `manage_user_home`. Skipped entirely for service accounts. If `ssh_key_exclusive: true`, all other keys in the file are removed. Using an explicit path means this task behaves correctly in `--check` mode even when the account does not yet exist on the target host.
+5. **Sudo access** — if `sudo: true`, writes `/etc/sudoers.d/<name>` validated with `visudo -cf` before placement. If `sudo: false`, removes any existing sudoers entry for the account.
 
 ### Removing an account (`state: absent`)
 
