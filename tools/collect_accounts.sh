@@ -5,9 +5,9 @@
 # accounts. Output matches the format expected by the manage_user role.
 #
 # Usage:
-#   sudo ./collect_accounts.sh [USERS_OUT] [SVC_OUT]
+#   sudo tools/collect_accounts.sh [USERS_OUT] [SVC_OUT]
 #
-# Defaults:
+# Defaults (relative to the repo root, resolved from the script's location):
 #   USERS_OUT  vars/users.yml
 #   SVC_OUT    vars/service_accounts.yml
 #
@@ -20,6 +20,7 @@
 set -euo pipefail
 
 SCRIPT="$(basename "$0")"
+REPO_ROOT="$(cd "$(dirname "$0")/.." && pwd)"
 
 # ---- Configuration -----------------------------------------------------------
 
@@ -28,8 +29,8 @@ USER_MAX_UID="${USER_MAX_UID:-65533}"
 SVC_MIN_UID="${SVC_MIN_UID:-100}"
 SVC_MAX_UID="${SVC_MAX_UID:-999}"
 
-USERS_OUT="${1:-vars/users.yml}"
-SVC_OUT="${2:-vars/service_accounts.yml}"
+USERS_OUT="${1:-${REPO_ROOT}/vars/users.yml}"
+SVC_OUT="${2:-${REPO_ROOT}/vars/service_accounts.yml}"
 
 DEFAULT_USER_SHELL="/bin/bash"
 DEFAULT_SVC_SHELL="/usr/sbin/nologin"

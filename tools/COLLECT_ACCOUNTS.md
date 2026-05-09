@@ -15,24 +15,26 @@ A companion script to the `manage_user` Ansible role. Run it as root on an exist
 ## Usage
 
 ```bash
-sudo ./collect_accounts.sh [USERS_OUT] [SVC_OUT]
+sudo tools/collect_accounts.sh [USERS_OUT] [SVC_OUT]
 ```
 
 | Argument | Default | Description |
 |---|---|---|
-| `USERS_OUT` | `vars/users.yml` | Output path for regular user accounts |
-| `SVC_OUT` | `vars/service_accounts.yml` | Output path for service accounts |
+| `USERS_OUT` | `vars/users.yml` relative to the repo root | Output path for regular user accounts |
+| `SVC_OUT` | `vars/service_accounts.yml` relative to the repo root | Output path for service accounts |
 
-Run from the repository root so the defaults land in the right place:
+Run from the repository root:
 
 ```bash
-sudo ./collect_accounts.sh
+sudo tools/collect_accounts.sh
 ```
+
+The script resolves default output paths relative to its own location, so `vars/users.yml` and `vars/service_accounts.yml` always land in the correct place regardless of the working directory.
 
 Custom output paths:
 
 ```bash
-sudo ./collect_accounts.sh /tmp/users.yml /tmp/service_accounts.yml
+sudo tools/collect_accounts.sh /tmp/users.yml /tmp/service_accounts.yml
 ```
 
 ---
