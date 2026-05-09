@@ -39,6 +39,13 @@ jobs:
             --exit-code 1
         continue-on-error: true  # upload results even when leaks are found
 
+      - name: Create empty SARIF if no findings
+        if: always()
+        run: |
+          if [ ! -f gitleaks-results.sarif ]; then
+            echo '{"version":"2.1.0","runs":[{"tool":{"driver":{"name":"Gitleaks","rules":[]}},"results":[]}]}' > gitleaks-results.sarif
+          fi
+
       - name: Upload SARIF to GitHub Security tab
         if: always()
         uses: github/codeql-action/upload-sarif@v3
