@@ -1,0 +1,48 @@
+name: Gitleaks secret scan
+
+on:
+  push:
+    branches: ["**"]
+  pull_request:
+    branches: ["**"]
+
+jobs:
+  gitleaks:
+    name: Scan for secrets
+    runs-on: ubuntu-latest
+    permissions:
+      security-events: write   # required to upload SARIF to the Security tab
+      contents: read
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 0        # full history so gitleaks can scan all commits
+
+      - name: Run gitleaks
+        id: gitleaks
+        uses: gitleaks/gitleaks-action@v2
+        with:
+          args: >-
+            detect
+            --config .gitleaks.toml
+            --report-format sarif
+            --report-path gitleaks-results.sarif
+            --redact
+            --exit-code 1
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          GITLEAKS_LICENSE: ${{ secrets.GITLEAKS_LICENSE }}
+        continue-on-error: true  # upload results even when leaks are found
+
+      - name: Upload SARIF to GitHub Security tab
+        if: always()
+        uses: github/codeql-action/upload-sarif@v3
+        with:
+          sarif_file: gitleaks-results.sarif
+          category: gitleaks
+
+      - name: Fail if leaks found
+        if: steps.gitleaks.outcome == 'failure'
+        run: exit 1
