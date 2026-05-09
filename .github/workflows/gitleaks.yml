@@ -20,20 +20,23 @@ jobs:
         with:
           fetch-depth: 0        # full history so gitleaks can scan all commits
 
+      - name: Install gitleaks
+        run: |
+          VERSION=$(curl -s https://api.github.com/repos/gitleaks/gitleaks/releases/latest \
+            | grep '"tag_name"' | cut -d '"' -f 4)
+          curl -sSL "https://github.com/gitleaks/gitleaks/releases/download/${VERSION}/gitleaks_${VERSION#v}_linux_x64.tar.gz" \
+            | tar -xz gitleaks
+          sudo mv gitleaks /usr/local/bin/gitleaks
+
       - name: Run gitleaks
         id: gitleaks
-        uses: gitleaks/gitleaks-action@v2
-        with:
-          args: >-
-            detect
-            --config .gitleaks.toml
-            --report-format sarif
-            --report-path gitleaks-results.sarif
-            --redact
+        run: |
+          gitleaks detect \
+            --config .gitleaks.toml \
+            --report-format sarif \
+            --report-path gitleaks-results.sarif \
+            --redact \
             --exit-code 1
-        env:
-          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
-          GITLEAKS_LICENSE: ${{ secrets.GITLEAKS_LICENSE }}
         continue-on-error: true  # upload results even when leaks are found
 
       - name: Upload SARIF to GitHub Security tab
