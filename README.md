@@ -59,7 +59,7 @@ A list of interactive user accounts. Each item supports:
 
 ### `manage_user_service_accounts`
 
-A list of non-interactive service accounts. No SSH key is required. Accounts are created as system accounts (low UID) with a nologin shell. No SSH key is required. Accounts are created as system accounts (low UID) with a nologin shell.
+A list of non-interactive service accounts. No SSH key is required. Accounts are created as system accounts (low UID) with a nologin shell.
 
 | Key | Required | Default | Description |
 |---|---|---|---|
@@ -153,7 +153,7 @@ The role's tasks are split into discrete files:
 
 | File | Responsibility |
 |---|---|
-| `tasks/main.yml` | Loops over `manage_users` and `manage_user_service_accounts`, passing resolved vars to `manage_user.yml` for each entry |
+| `tasks/main.yml` | Loops over `manage_user_accounts` and `manage_user_service_accounts`, passing resolved vars to `manage_user.yml` for each entry |
 | `tasks/manage_user.yml` | Per-entry wrapper — sequences validate, user, ssh, and sudo |
 | `tasks/validate.yml` | Asserts required fields are present |
 | `tasks/user.yml` | Creates or removes the account via the `user` module |
@@ -164,7 +164,7 @@ The role's tasks are split into discrete files:
 
 1. **Validation** — asserts `name` is non-empty; for regular users, also asserts `ssh_public_key` is provided.
 2. **User account** — creates or reconciles the account with the declared shell, home, comment, and groups. Password login is locked (`password_lock: true`). Service accounts are created as system accounts (`system: true`).
-3. **SSH authorized key** — writes the public key to `~/.ssh/authorized_keys`. Skipped entirely for service accounts. If `ssh_key_exclusive: true`, all other keys in the file are removed.
+3. **SSH authorized key** — writes the public key to `<home>/.ssh/authorized_keys` using an explicit path derived from `manage_user_home`. Skipped entirely for service accounts. If `ssh_key_exclusive: true`, all other keys in the file are removed. Using an explicit path means this task behaves correctly in `--check` mode even when the account does not yet exist on the target host.
 4. **Sudo access** — if `sudo: true`, writes `/etc/sudoers.d/<name>` validated with `visudo -cf` before placement. If `sudo: false`, removes any existing sudoers entry for the account.
 
 ### Removing an account (`state: absent`)
@@ -196,6 +196,36 @@ ansible-playbook -i inventory.ini playbook.yml --check
 # Verbose output
 ansible-playbook -i inventory.ini playbook.yml -v
 ```
+
+---
+
+## Secret Scanning
+
+This repository uses [gitleaks](https://github.com/gitleaks/gitleaks) to detect accidentally committed secrets.
+
+### Pre-commit hook
+
+A pre-commit hook runs `gitleaks protect --staged` before every commit, blocking the commit if a secret is detected in the staged diff. The hook is written to `.git/hooks/pre-commit` and is not tracked in git, so it must be installed manually on each clone:
+
+```bash
+cat > .git/hooks/pre-commit << 'EOF'
+#!/bin/sh
+gitleaks protect --staged --config .gitleaks.toml --redact -v
+EOF
+chmod +x .git/hooks/pre-commit
+```
+
+gitleaks must be installed on the control node (`brew install gitleaks` on macOS or see the [releases page](https://github.com/gitleaks/gitleaks/releases) for Linux).
+
+### GitHub Actions
+
+The workflow at `.github/workflows/gitleaks.yml` runs on every push and pull request. It scans the full commit history, uploads findings to the repository's **Security → Code scanning** tab as SARIF alerts, and fails the check if any secrets are detected.
+
+The workflow installs gitleaks directly from the GitHub releases API so no licence secret is required.
+
+### Configuration
+
+Rules are defined in `.gitleaks.toml`, which extends the default gitleaks ruleset. Example and template files (`*.example.yml`) are allowlisted since they intentionally contain placeholder values.
 
 ---
 

@@ -2,6 +2,7 @@
 - name: Configure SSH authorized key
   ansible.posix.authorized_key:
     user: "{{ manage_user_name }}"
+    path: "{{ manage_user_home }}/.ssh/authorized_keys"
     state: present
     key: "{{ manage_user_ssh_public_key }}"
     exclusive: "{{ manage_user_ssh_key_exclusive }}"
