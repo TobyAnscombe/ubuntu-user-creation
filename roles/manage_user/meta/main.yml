@@ -17,5 +17,4 @@ galaxy_info:
     - sudo
     - ubuntu
 dependencies:
-  - community.general
-  - ansible.posix
+
