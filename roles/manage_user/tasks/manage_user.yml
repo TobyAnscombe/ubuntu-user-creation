@@ -1,4 +1,6 @@
 ---
+# include_tasks can only call one file per loop iteration, so this sequencer is
+# required — main.yml cannot call multiple task files inline per item.
 - name: Run validation
   ansible.builtin.include_tasks: validate.yml
 

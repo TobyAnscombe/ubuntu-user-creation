@@ -3,10 +3,3 @@ title = "gitleaks config"
 [extend]
 useDefault = true
 
-[allowlist]
-description = "Allow placeholder values in example/template files"
-paths = [
-  '''.*\.example\.yml$''',
-  '''.*\.example\.yaml$''',
-  '''.*\.example$''',
-]

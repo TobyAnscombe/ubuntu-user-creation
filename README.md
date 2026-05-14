@@ -77,7 +77,7 @@ A list of non-interactive service accounts. No SSH key is required. Accounts are
 
 ## Defining Users and Service Accounts
 
-Accounts are declared in two var files loaded by the playbook:
+Accounts are declared in two var files loaded by the playbook. Both are gitignored — create them before running:
 
 **`vars/users.yml`**
 
@@ -206,27 +206,29 @@ This repository uses [gitleaks](https://github.com/gitleaks/gitleaks) to detect 
 
 ### Pre-commit hook
 
-A pre-commit hook runs `gitleaks protect --staged` before every commit, blocking the commit if a secret is detected in the staged diff. The hook is written to `.git/hooks/pre-commit` and is not tracked in git, so it must be installed manually on each clone:
+A pre-commit hook runs `gitleaks protect --staged` before every commit, blocking the commit if a secret is detected in the staged diff. The hook is managed via [pre-commit](https://pre-commit.com) and configured in `.pre-commit-config.yaml`. Install it once after cloning:
 
 ```bash
-cat > .git/hooks/pre-commit << 'EOF'
-#!/bin/sh
-gitleaks protect --staged --config .gitleaks.toml --redact -v
-EOF
-chmod +x .git/hooks/pre-commit
+pip install pre-commit   # or: brew install pre-commit
+pre-commit install
 ```
 
-gitleaks must be installed on the control node (`brew install gitleaks` on macOS or see the [releases page](https://github.com/gitleaks/gitleaks/releases) for Linux).
+gitleaks is downloaded automatically by pre-commit — no separate installation needed.
 
 ### GitHub Actions
 
-The workflow at `.github/workflows/gitleaks.yml` runs on every push and pull request. It scans the full commit history, uploads findings to the repository's **Security → Code scanning** tab as SARIF alerts, and fails the check if any secrets are detected.
+Two workflows run on every push and pull request:
 
-The workflow installs gitleaks directly from the GitHub releases API so no licence secret is required.
+| Workflow | Purpose |
+|---|---|
+| `.github/workflows/ansible-lint.yml` | Lints all Ansible content at the `production` profile |
+| `.github/workflows/gitleaks.yml` | Scans the full commit history for secrets; uploads findings to **Security → Code scanning** as SARIF alerts |
+
+The gitleaks workflow installs gitleaks directly from the GitHub releases API so no licence secret is required.
 
 ### Configuration
 
-Rules are defined in `.gitleaks.toml`, which extends the default gitleaks ruleset. Example and template files (`*.example.yml`) are allowlisted since they intentionally contain placeholder values.
+Rules are defined in `.gitleaks.toml`, which extends the default gitleaks ruleset.
 
 ---
 

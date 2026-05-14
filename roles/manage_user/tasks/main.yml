@@ -1,4 +1,9 @@
 ---
+# All item fields are resolved into manage_user_* vars here so that downstream
+# task files never reference item.* directly — keeps execution logic decoupled
+# from the loop structure and lets manage_user.yml be reasoned about in isolation.
+# Two separate loops (not one with a type flag) because service accounts differ
+# in shell default, system flag, and have no SSH key at all.
 - name: Manage user account - {{ item.name }}
   ansible.builtin.include_tasks: manage_user.yml
   vars:

@@ -1,4 +1,6 @@
 ---
+# path is derived from manage_user_home rather than looked up at runtime so that
+# this task works correctly in --check mode when the account does not yet exist.
 - name: Configure SSH authorized key
   ansible.posix.authorized_key:
     user: "{{ manage_user_name }}"

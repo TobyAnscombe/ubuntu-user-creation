@@ -1,4 +1,7 @@
 ---
+# Groups are created before the account so that software-managed groups (e.g.
+# docker) can be declared even when the package that normally creates them has
+# not yet been installed on the host.
 - name: Ensure supplementary groups exist
   ansible.builtin.group:
     name: "{{ group_item }}"
@@ -20,7 +23,7 @@
     groups: "{{ manage_user_groups }}"
     append: "{{ manage_user_append_groups }}"
     uid: "{{ manage_user_uid }}"
-    password_lock: true
+    password_lock: true   # sets shadow field to '!' — explicit lock, not relying on no password being set
     create_home: true
     system: "{{ manage_user_system }}"
   when: manage_user_state == 'present'

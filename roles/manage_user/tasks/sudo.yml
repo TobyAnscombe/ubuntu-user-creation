@@ -1,4 +1,7 @@
 ---
+# sudo: false actively removes the drop-in rather than leaving it in place —
+# sudo access is never silently retained from a previous run.
+# validate with visudo -cf before placement to avoid writing a broken sudoers file.
 - name: Grant passwordless sudo access
   ansible.builtin.copy:
     content: "{{ manage_user_name }} ALL=(ALL:ALL) NOPASSWD: ALL\n"
