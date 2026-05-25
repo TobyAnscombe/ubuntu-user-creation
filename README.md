@@ -57,8 +57,13 @@ manage_user_allowusers_extra:
 
 manage_user_accounts:
   - name: adm-alice
-    ssh_public_key: "ssh-ed25519 AAAA… alice@example.com"
+    ssh_public_key: "ssh-ed25519 AAAA… alice@laptop"   # single key — shorthand
     sudo: true      # included in AllowUsers automatically
+
+  - name: adm-bob
+    ssh_public_keys:                                    # multiple keys — list form
+      - "ssh-ed25519 AAAA… bob@laptop"
+      - "ssh-ed25519 AAAA… bob@desktop"
 
   - name: svc-deploy
     ssh_public_key: "ssh-ed25519 AAAA… deploy@ci"
@@ -74,7 +79,8 @@ A list of interactive user accounts. Each item supports:
 | Key | Required | Default | Description |
 |---|---|---|---|
 | `name` | yes | — | Username |
-| `ssh_public_key` | yes | — | Full public key string (e.g. `ssh-ed25519 AAAA… user@host`) |
+| `ssh_public_keys` | one of these two | — | List of public key strings. Each key is checked individually and appended to `authorized_keys` only if not already present. Use this when a user has more than one key. |
+| `ssh_public_key` | one of these two | — | Single public key string — shorthand for the common case. Resolved to a one-item list internally. |
 | `state` | no | `present` | `present` to create/update, `absent` to remove |
 | `uid` | no | auto-assigned | Fixed UID for the account. Useful for consistency across hosts. |
 | `comment` | no | `""` | GECOS field — typically the user's full name |
@@ -83,7 +89,7 @@ A list of interactive user accounts. Each item supports:
 | `groups` | no | `[]` | Additional groups to assign |
 | `shell` | no | `manage_user_default_shell` | Override the login shell for this user |
 | `home` | no | `manage_user_default_home_base/<name>` | Override the home directory path |
-| `ssh_key_exclusive` | no | `false` | When `true`, removes any authorized keys not declared here |
+| `ssh_key_exclusive` | no | `false` | When `true`, any key in `authorized_keys` not in the declared list is removed |
 | `remove_home` | no | `false` | When `state: absent`, also delete the home directory |
 
 ### `manage_user_service_accounts`
@@ -198,7 +204,7 @@ The role's tasks are split into discrete files:
 1. **Validation** — asserts `name` is non-empty; for regular users, also asserts `ssh_public_key` is provided.
 2. **Supplementary groups** — any group listed under `groups` that does not already exist on the host is created before the account is configured. This allows groups like `docker` to be declared even when the software that would normally create them (e.g. Docker) has not yet been installed.
 3. **User account** — creates or reconciles the account with the declared shell, home, comment, and groups. Password login is locked (`password_lock: true`). Service accounts are created as system accounts (`system: true`).
-4. **SSH authorized key** — writes the public key to `<home>/.ssh/authorized_keys` using an explicit path derived from `manage_user_home`. Skipped entirely for service accounts. If `ssh_key_exclusive: true`, all other keys in the file are removed. Using an explicit path means this task behaves correctly in `--check` mode even when the account does not yet exist on the target host.
+4. **SSH authorized keys** — each key in `ssh_public_keys` (or the single `ssh_public_key` resolved to a list) is checked against the existing `authorized_keys` file and appended only if not already present. No key is written twice. Skipped entirely for service accounts. When `ssh_key_exclusive: true`, any key in the file not in the declared list is removed. Using an explicit path derived from `manage_user_home` means this task behaves correctly in `--check` mode even when the account does not yet exist on the target host.
 5. **Sudo access** — if `sudo: true`, writes `/etc/sudoers.d/<name>` validated with `visudo -cf` before placement. If `sudo: false`, removes any existing sudoers entry for the account.
 6. **AllowUsers** *(on by default)* — after all accounts are processed, writes `/etc/ssh/sshd_config.d/allowusers.conf` with every present account that has not set `allow_ssh: false`, plus any entries in `manage_user_allowusers_extra`. Notifies the `Restart SSH` handler only if the file content changes. Disabled by setting `manage_user_sshd_allowusers: false`.
 

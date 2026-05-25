@@ -16,7 +16,11 @@
     manage_user_append_groups: "{{ item.append_groups | default(true) }}"
     manage_user_sudo: "{{ item.sudo | default(false) }}"
     manage_user_uid: "{{ item.uid | default(omit) }}"
-    manage_user_ssh_public_key: "{{ item.ssh_public_key | default('') }}"
+    manage_user_ssh_public_keys: >-
+      {{
+        item.ssh_public_keys
+        | default(([item.ssh_public_key] if item.ssh_public_key is defined else []))
+      }}
     manage_user_ssh_key_exclusive: "{{ item.ssh_key_exclusive | default(false) }}"
     manage_user_remove_home: "{{ item.remove_home | default(false) }}"
     manage_user_system: false
@@ -37,7 +41,7 @@
     manage_user_append_groups: "{{ item.append_groups | default(true) }}"
     manage_user_sudo: "{{ item.sudo | default(false) }}"
     manage_user_uid: "{{ item.uid | default(omit) }}"
-    manage_user_ssh_public_key: ""
+    manage_user_ssh_public_keys: []
     manage_user_ssh_key_exclusive: false
     manage_user_remove_home: "{{ item.remove_home | default(false) }}"
     manage_user_system: true

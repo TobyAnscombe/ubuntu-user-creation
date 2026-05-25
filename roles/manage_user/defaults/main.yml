@@ -7,7 +7,13 @@ manage_user_service_account_default_shell: /usr/sbin/nologin
 # Regular interactive user accounts.
 # Each entry supports:
 #   name               (required) Login name
-#   ssh_public_key     (required) Public key string
+#   ssh_public_keys    (required*) List of public key strings — each key is
+#                      checked individually and appended only if not already
+#                      present in authorized_keys
+#   ssh_public_key     (required*) Single public key string — shorthand when
+#                      only one key is needed; resolved to a one-item list
+#                      internally. Use ssh_public_keys when managing multiple.
+#                      * one of ssh_public_key or ssh_public_keys is required
 #   state              present | absent  (default: present)
 #   uid                integer           (default: auto-assigned)
 #   sudo               true | false      (default: false)
