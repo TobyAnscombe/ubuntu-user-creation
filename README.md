@@ -45,7 +45,7 @@ These apply to every entry in `manage_user_accounts` and `manage_user_service_ac
 |---|---|---|
 | `manage_user_sshd_allowusers` | `true` | Writes `/etc/ssh/sshd_config.d/allowusers.conf` and restarts SSH if the file changes. Set `false` to disable. |
 | `manage_user_allowusers_extra` | `[]` | Additional usernames to include in `AllowUsers` that are not managed by this role — typically the bootstrap or provisioning account used to run the playbook. |
-| `manage_user_sshd_crypto` | `true` | Writes `/etc/ssh/sshd_config.d/crypto.conf` with a hardened set of Ciphers, KexAlgorithms, and MACs. All algorithms are supported by OpenSSH 7.6 (Ubuntu 18.04+). Set `false` to leave the system cipher defaults in place. |
+| `manage_user_sshd_crypto` | `true` | Writes a hardened Ciphers, KexAlgorithms, and MACs block into `/etc/ssh/sshd_config`. All algorithms are supported by OpenSSH 7.6 (Ubuntu 18.04+). Set `false` to leave the system cipher defaults in place. |
 
 The `AllowUsers` list is built automatically from every present account in `manage_user_accounts` that has not set `allow_ssh: false`. Accounts with `state: absent` are excluded automatically. `manage_user_allowusers_extra` entries are appended to that computed list.
 
@@ -70,7 +70,7 @@ manage_user_accounts:
     allow_ssh: false  # key is deployed but sshd blocks login at the daemon level
 ```
 
-The drop-in is placed at `/etc/ssh/sshd_config.d/allowusers.conf`. The role asserts the computed list is non-empty before writing — an empty `AllowUsers` would lock out all SSH access. The SSH daemon is only restarted when the file content changes (handler-driven). The task runs once after all accounts are processed, not per-user.
+`AllowUsers` is written directly into `/etc/ssh/sshd_config` via `lineinfile`. The role asserts the computed list is non-empty before writing — an empty `AllowUsers` would lock out all SSH access. The SSH daemon is only restarted when the line actually changes (handler-driven). The task runs once after all accounts are processed, not per-user. The full sshd configuration is validated with `sshd -t` after all changes are applied so the daemon is never restarted with a broken config.
 
 ### `manage_user_accounts`
 
@@ -194,10 +194,9 @@ The role's tasks are split into discrete files:
 | `tasks/user.yml` | Ensures supplementary groups exist, then creates or removes the account via the `user` module |
 | `tasks/ssh.yml` | Configures the authorized key (skipped for service accounts) |
 | `tasks/sudo.yml` | Grants or removes `NOPASSWD` sudo access |
-| `tasks/init_sshd.yml` | Ensures `/etc/ssh/sshd_config.d/` exists and is `Include`-d in `sshd_config`; called once before any drop-in task |
-| `tasks/add_sshd.yml` | Writes `/etc/ssh/sshd_config.d/allowusers.conf`; only runs when `manage_user_sshd_allowusers: true` |
-| `tasks/add_sshd_crypto.yml` | Writes `/etc/ssh/sshd_config.d/crypto.conf` with hardened Ciphers, KexAlgorithms, and MACs; validates with `sshd -t`; only runs when `manage_user_sshd_crypto: true` |
-| `handlers/main.yml` | `Restart SSH` handler — restarts the `ssh` service when any drop-in changes |
+| `tasks/add_sshd.yml` | Manages `AllowUsers` directly in `/etc/ssh/sshd_config` via `lineinfile` |
+| `tasks/add_sshd_crypto.yml` | Manages the crypto policy block directly in `/etc/ssh/sshd_config` via `blockinfile` |
+| `handlers/main.yml` | `Restart SSH` handler — restarts the `ssh` service when sshd_config changes |
 
 ### Creating or updating an account (`state: present`)
 

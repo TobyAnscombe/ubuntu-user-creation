@@ -50,17 +50,39 @@
   loop_control:
     label: "{{ item.name }}"
 
-# sshd drop-in tasks run once after all accounts are processed — not per-user.
-# init_sshd.yml runs first whenever any drop-in feature is enabled, ensuring
-# /etc/ssh/sshd_config.d/ exists and is included on all Ubuntu releases.
-- name: Initialise sshd drop-in directory
-  ansible.builtin.include_tasks: init_sshd.yml
-  when: manage_user_sshd_allowusers | bool or manage_user_sshd_crypto | bool
+# sshd configuration — runs once after all accounts are processed, not per-user.
+# Drop-in files (/etc/ssh/sshd_config.d/) require OpenSSH 8.2+; Ubuntu 18.04
+# ships 7.6, so all sshd settings are managed directly in sshd_config instead.
+#
+# Cleanup: remove the Include directive and drop-in files written by earlier
+# versions of this role before the 18.04 compatibility issue was discovered.
+# These tasks are idempotent and safe to run even if the files were never created.
+- name: Remove sshd_config Include directive added by earlier role versions
+  ansible.builtin.lineinfile:
+    path: /etc/ssh/sshd_config
+    line: "Include /etc/ssh/sshd_config.d/*.conf"
+    state: absent
+  notify: Restart SSH
+
+- name: Remove sshd AllowUsers drop-in file added by earlier role versions
+  ansible.builtin.file:
+    path: /etc/ssh/sshd_config.d/allowusers.conf
+    state: absent
+
+- name: Remove sshd crypto drop-in file added by earlier role versions
+  ansible.builtin.file:
+    path: /etc/ssh/sshd_config.d/crypto.conf
+    state: absent
 
 - name: Manage sshd AllowUsers
   ansible.builtin.include_tasks: add_sshd.yml
-  when: manage_user_sshd_allowusers | bool
 
 - name: Manage sshd crypto policy
   ansible.builtin.include_tasks: add_sshd_crypto.yml
-  when: manage_user_sshd_crypto | bool
+
+# Validate the full sshd configuration after any changes. sshd -t exits
+# non-zero on syntax or algorithm errors, failing the play before the
+# Restart SSH handler fires — the daemon is never restarted with a broken config.
+- name: Validate sshd configuration
+  ansible.builtin.command: sshd -t
+  changed_when: false

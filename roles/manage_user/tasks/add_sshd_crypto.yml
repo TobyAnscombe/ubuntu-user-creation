@@ -1,19 +1,26 @@
 ---
-- name: Configure sshd crypto policy via drop-in file
-  ansible.builtin.copy:
-    dest: /etc/ssh/sshd_config.d/crypto.conf
-    content: |
+# Crypto policy is managed directly in /etc/ssh/sshd_config via blockinfile.
+# Drop-in files are not used — OpenSSH's Include directive for sshd_config
+# requires 8.2+; Ubuntu 18.04 ships 7.6.
+# blockinfile wraps the block in idempotent BEGIN/END markers so subsequent
+# runs update in place without duplicating lines.
+
+- name: Set sshd crypto policy in sshd_config
+  ansible.builtin.blockinfile:
+    path: /etc/ssh/sshd_config
+    marker: "# {mark} ANSIBLE MANAGED BLOCK - sshd crypto policy"
+    block: |
       Ciphers aes128-ctr,aes192-ctr,aes256-ctr,chacha20-poly1305@openssh.com,aes256-gcm@openssh.com,aes128-gcm@openssh.com
       KexAlgorithms curve25519-sha256@libssh.org,ecdh-sha2-nistp256,ecdh-sha2-nistp384,ecdh-sha2-nistp521,diffie-hellman-group-exchange-sha256
       MACs hmac-sha2-512-etm@openssh.com,hmac-sha2-256-etm@openssh.com,hmac-sha2-512,hmac-sha2-256
-    owner: root
-    group: root
-    mode: "0600"
+    state: present
+  when: manage_user_sshd_crypto | bool
   notify: Restart SSH
 
-# Validate the full sshd configuration (including all drop-ins) after writing.
-# sshd -t exits non-zero on any syntax or algorithm error, failing the play
-# before the handler can restart the daemon with a broken config.
-- name: Validate sshd configuration
-  ansible.builtin.command: sshd -t
-  changed_when: false
+- name: Remove sshd crypto policy block from sshd_config
+  ansible.builtin.blockinfile:
+    path: /etc/ssh/sshd_config
+    marker: "# {mark} ANSIBLE MANAGED BLOCK - sshd crypto policy"
+    state: absent
+  when: not manage_user_sshd_crypto | bool
+  notify: Restart SSH

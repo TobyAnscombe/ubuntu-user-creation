@@ -1,8 +1,8 @@
 ---
-# Build the AllowUsers list from every present account in manage_user_accounts
-# that has not opted out with allow_ssh: false. manage_user_allowusers_extra
-# is appended for accounts not managed by this role (e.g. ubuntu bootstrap user).
-# Accounts with state: absent are excluded automatically.
+# AllowUsers is managed directly in /etc/ssh/sshd_config via lineinfile.
+# Drop-in files are not used — OpenSSH's Include directive for sshd_config
+# requires 8.2+; Ubuntu 18.04 ships 7.6.
+
 - name: Build AllowUsers list from present managed accounts
   ansible.builtin.set_fact:
     _manage_user_allowusers_computed: >-
@@ -16,6 +16,7 @@
         | list
         + manage_user_allowusers_extra
       }}
+  when: manage_user_sshd_allowusers | bool
 
 - name: Assert AllowUsers list is not empty
   ansible.builtin.assert:
@@ -24,11 +25,21 @@
       manage_user_sshd_allowusers is enabled but the computed AllowUsers list
       is empty — writing it would block all SSH access. Add at least one
       present account, or set manage_user_sshd_allowusers: false to disable.
+  when: manage_user_sshd_allowusers | bool
 
-- name: Manage AllowUsers via drop-in file
-  ansible.builtin.copy:
-    dest: /etc/ssh/sshd_config.d/allowusers.conf
-    content: |
-      AllowUsers {{ _manage_user_allowusers_computed | join(' ') }}
-    mode: "0600"
+- name: Set AllowUsers in sshd_config
+  ansible.builtin.lineinfile:
+    path: /etc/ssh/sshd_config
+    regexp: '^#?AllowUsers'
+    line: "AllowUsers {{ _manage_user_allowusers_computed | join(' ') }}"
+    state: present
+  when: manage_user_sshd_allowusers | bool
+  notify: Restart SSH
+
+- name: Remove AllowUsers from sshd_config
+  ansible.builtin.lineinfile:
+    path: /etc/ssh/sshd_config
+    regexp: '^AllowUsers'
+    state: absent
+  when: not manage_user_sshd_allowusers | bool
   notify: Restart SSH
