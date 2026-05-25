@@ -11,6 +11,8 @@ manage_user_service_account_default_shell: /usr/sbin/nologin
 #   state              present | absent  (default: present)
 #   uid                integer           (default: auto-assigned)
 #   sudo               true | false      (default: false)
+#   allow_ssh          true | false      (default: true)  — set false to exclude
+#                      this account from the sshd AllowUsers drop-in
 #   groups             list              (default: [])
 #   shell                                (default: manage_user_default_shell)
 #   home                                 (default: manage_user_default_home_base/<name>)
@@ -20,12 +22,14 @@ manage_user_service_account_default_shell: /usr/sbin/nologin
 manage_user_accounts: []
 
 # SSH daemon AllowUsers management.
-# Set manage_user_sshd_allowusers: true to write /etc/ssh/sshd_config.d/allowusers.conf.
-# manage_user_allowusers_list must be set explicitly — list every username that should be
-# permitted to connect via SSH, including any bootstrap/provisioning accounts.
-# The sshd service is restarted only when the file changes.
-manage_user_sshd_allowusers: false
-manage_user_allowusers_list: []
+# Enabled by default. The AllowUsers list is built automatically from every
+# present account in manage_user_accounts that has allow_ssh != false.
+# Set manage_user_sshd_allowusers: false to disable the drop-in entirely.
+# manage_user_allowusers_extra — additional accounts to include that are not
+# managed by this role (e.g. the bootstrap/provisioning account used to run
+# the playbook). These are appended to the auto-computed list.
+manage_user_sshd_allowusers: true
+manage_user_allowusers_extra: []
 
 # Non-interactive service accounts (no SSH key, nologin shell, system UID).
 # Each entry supports:

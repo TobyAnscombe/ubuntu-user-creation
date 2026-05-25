@@ -20,10 +20,36 @@
     state: present
   notify: Restart SSH
 
+# Build the AllowUsers list from every present account in manage_user_accounts
+# that has not opted out with allow_ssh: false. manage_user_allowusers_extra
+# is appended for accounts not managed by this role (e.g. ubuntu bootstrap user).
+# Accounts with state: absent are excluded automatically.
+- name: Build AllowUsers list from present managed accounts
+  ansible.builtin.set_fact:
+    _manage_user_allowusers_computed: >-
+      {{
+        (
+          (manage_user_accounts | rejectattr('state', 'defined') | list) +
+          (manage_user_accounts | selectattr('state', 'defined') | selectattr('state', 'equalto', 'present') | list)
+        )
+        | rejectattr('allow_ssh', 'equalto', false)
+        | map(attribute='name')
+        | list
+        + manage_user_allowusers_extra
+      }}
+
+- name: Assert AllowUsers list is not empty
+  ansible.builtin.assert:
+    that: _manage_user_allowusers_computed | length > 0
+    fail_msg: >-
+      manage_user_sshd_allowusers is enabled but the computed AllowUsers list
+      is empty — writing it would block all SSH access. Add at least one
+      present account, or set manage_user_sshd_allowusers: false to disable.
+
 - name: Manage AllowUsers via drop-in file
   ansible.builtin.copy:
     dest: /etc/ssh/sshd_config.d/allowusers.conf
     content: |
-      AllowUsers {{ manage_user_allowusers_list | join(' ') }}
+      AllowUsers {{ _manage_user_allowusers_computed | join(' ') }}
     mode: "0600"
   notify: Restart SSH

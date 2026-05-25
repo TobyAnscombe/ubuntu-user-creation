@@ -43,20 +43,28 @@ These apply to every entry in `manage_user_accounts` and `manage_user_service_ac
 
 | Variable | Default | Description |
 |---|---|---|
-| `manage_user_sshd_allowusers` | `false` | When `true`, writes `/etc/ssh/sshd_config.d/allowusers.conf` and restarts the SSH service if the file changes. |
-| `manage_user_allowusers_list` | `[]` | List of usernames permitted by `AllowUsers`. Must be set explicitly — include every account that must be able to SSH in, including any bootstrap or provisioning users. |
+| `manage_user_sshd_allowusers` | `true` | Writes `/etc/ssh/sshd_config.d/allowusers.conf` and restarts SSH if the file changes. Set `false` to disable the drop-in entirely. |
+| `manage_user_allowusers_extra` | `[]` | Additional usernames to include in `AllowUsers` that are not managed by this role — typically the bootstrap or provisioning account used to run the playbook. |
 
-Enable and configure in your vars file:
+The `AllowUsers` list is built automatically from every present account in `manage_user_accounts` that has not set `allow_ssh: false`. Accounts with `state: absent` are excluded automatically. `manage_user_allowusers_extra` entries are appended to that computed list.
+
+To add the bootstrap account and block one user:
 
 ```yaml
-manage_user_sshd_allowusers: true
-manage_user_allowusers_list:
-  - ubuntu          # bootstrap / provisioning account
-  - adm-alice
-  - adm-bob
+manage_user_allowusers_extra:
+  - ubuntu          # provisioning account — not managed by this role
+
+manage_user_accounts:
+  - name: adm-alice
+    ssh_public_key: "ssh-ed25519 AAAA… alice@example.com"
+    sudo: true      # included in AllowUsers automatically
+
+  - name: svc-deploy
+    ssh_public_key: "ssh-ed25519 AAAA… deploy@ci"
+    allow_ssh: false  # key is deployed but sshd blocks login at the daemon level
 ```
 
-The drop-in file is placed at `/etc/ssh/sshd_config.d/allowusers.conf` and takes precedence over any `AllowUsers` line in the main `sshd_config`. The SSH daemon is only restarted when the file content actually changes (handler-driven). The task runs once after all accounts are processed, not per-user.
+The drop-in is placed at `/etc/ssh/sshd_config.d/allowusers.conf`. The role asserts the computed list is non-empty before writing — an empty `AllowUsers` would lock out all SSH access. The SSH daemon is only restarted when the file content changes (handler-driven). The task runs once after all accounts are processed, not per-user.
 
 ### `manage_user_accounts`
 
@@ -70,6 +78,7 @@ A list of interactive user accounts. Each item supports:
 | `uid` | no | auto-assigned | Fixed UID for the account. Useful for consistency across hosts. |
 | `comment` | no | `""` | GECOS field — typically the user's full name |
 | `sudo` | no | `false` | Grant full `NOPASSWD` sudo via `/etc/sudoers.d/` |
+| `allow_ssh` | no | `true` | When `false`, excludes this account from the sshd `AllowUsers` drop-in. The account and its SSH key are still created normally; only the AllowUsers entry is omitted. |
 | `groups` | no | `[]` | Additional groups to assign |
 | `shell` | no | `manage_user_default_shell` | Override the login shell for this user |
 | `home` | no | `manage_user_default_home_base/<name>` | Override the home directory path |
@@ -188,7 +197,7 @@ The role's tasks are split into discrete files:
 3. **User account** — creates or reconciles the account with the declared shell, home, comment, and groups. Password login is locked (`password_lock: true`). Service accounts are created as system accounts (`system: true`).
 4. **SSH authorized key** — writes the public key to `<home>/.ssh/authorized_keys` using an explicit path derived from `manage_user_home`. Skipped entirely for service accounts. If `ssh_key_exclusive: true`, all other keys in the file are removed. Using an explicit path means this task behaves correctly in `--check` mode even when the account does not yet exist on the target host.
 5. **Sudo access** — if `sudo: true`, writes `/etc/sudoers.d/<name>` validated with `visudo -cf` before placement. If `sudo: false`, removes any existing sudoers entry for the account.
-6. **AllowUsers** *(opt-in)* — after all accounts are processed, if `manage_user_sshd_allowusers: true`, writes `/etc/ssh/sshd_config.d/allowusers.conf` from `manage_user_allowusers_list` and notifies the `Restart SSH` handler if the file changes.
+6. **AllowUsers** *(on by default)* — after all accounts are processed, writes `/etc/ssh/sshd_config.d/allowusers.conf` with every present account that has not set `allow_ssh: false`, plus any entries in `manage_user_allowusers_extra`. Notifies the `Restart SSH` handler only if the file content changes. Disabled by setting `manage_user_sshd_allowusers: false`.
 
 ### Removing an account (`state: absent`)
 
@@ -261,4 +270,4 @@ Rules are defined in `.gitleaks.toml`, which extends the default gitleaks rulese
 - **Sudoers cleanup is explicit.** Setting `sudo: false` on a subsequent run actively removes `/etc/sudoers.d/<name>`. Sudo access is never silently left in place.
 - **SSH key exclusivity.** By default the role appends the declared key without touching others. Set `ssh_key_exclusive: true` on an account if it should only trust the declared key.
 - **Service accounts cannot log in interactively.** The default shell is `/usr/sbin/nologin` and no SSH key is configured, preventing both shell and key-based access.
-- **AllowUsers enforcement.** When `manage_user_sshd_allowusers: true`, a drop-in file restricts SSH access to exactly the accounts in `manage_user_allowusers_list`. Any account not in that list is blocked at the daemon level regardless of its authorized keys. Include bootstrap and provisioning accounts in the list or they will be locked out on the next sshd restart.
+- **AllowUsers enforcement.** By default a drop-in file restricts SSH access to exactly the accounts in the computed `AllowUsers` list. Any account not in that list is blocked at the daemon level regardless of its authorized keys. Add bootstrap or provisioning accounts via `manage_user_allowusers_extra` or they will be locked out on the next sshd restart. The role asserts the list is non-empty before writing to prevent a lockout.
