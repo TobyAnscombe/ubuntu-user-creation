@@ -19,6 +19,14 @@ manage_user_service_account_default_shell: /usr/sbin/nologin
 #   remove_home        true | false      (default: false)
 manage_user_accounts: []
 
+# SSH daemon AllowUsers management.
+# Set manage_user_sshd_allowusers: true to write /etc/ssh/sshd_config.d/allowusers.conf.
+# manage_user_allowusers_list must be set explicitly — list every username that should be
+# permitted to connect via SSH, including any bootstrap/provisioning accounts.
+# The sshd service is restarted only when the file changes.
+manage_user_sshd_allowusers: false
+manage_user_allowusers_list: []
+
 # Non-interactive service accounts (no SSH key, nologin shell, system UID).
 # Each entry supports:
 #   name               (required) Account name

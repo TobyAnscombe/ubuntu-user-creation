@@ -31,13 +31,32 @@ All variables are defined in `defaults/main.yml`.
 
 ### Global defaults
 
-These apply to every entry in `manage_users` and `manage_user_service_accounts` unless overridden on the individual item.
+These apply to every entry in `manage_user_accounts` and `manage_user_service_accounts` unless overridden on the individual item.
 
 | Variable | Default | Description |
 |---|---|---|
 | `manage_user_default_home_base` | `/home` | Base path for home directories. The account home is `<base>/<name>` unless `home` is set on the item. |
 | `manage_user_default_shell` | `/bin/bash` | Login shell for regular user accounts. |
 | `manage_user_service_account_default_shell` | `/usr/sbin/nologin` | Login shell for service accounts. |
+
+### SSH daemon — AllowUsers
+
+| Variable | Default | Description |
+|---|---|---|
+| `manage_user_sshd_allowusers` | `false` | When `true`, writes `/etc/ssh/sshd_config.d/allowusers.conf` and restarts the SSH service if the file changes. |
+| `manage_user_allowusers_list` | `[]` | List of usernames permitted by `AllowUsers`. Must be set explicitly — include every account that must be able to SSH in, including any bootstrap or provisioning users. |
+
+Enable and configure in your vars file:
+
+```yaml
+manage_user_sshd_allowusers: true
+manage_user_allowusers_list:
+  - ubuntu          # bootstrap / provisioning account
+  - adm-alice
+  - adm-bob
+```
+
+The drop-in file is placed at `/etc/ssh/sshd_config.d/allowusers.conf` and takes precedence over any `AllowUsers` line in the main `sshd_config`. The SSH daemon is only restarted when the file content actually changes (handler-driven). The task runs once after all accounts are processed, not per-user.
 
 ### `manage_user_accounts`
 
@@ -153,12 +172,14 @@ The role's tasks are split into discrete files:
 
 | File | Responsibility |
 |---|---|
-| `tasks/main.yml` | Loops over `manage_user_accounts` and `manage_user_service_accounts`, passing resolved vars to `manage_user.yml` for each entry |
+| `tasks/main.yml` | Loops over `manage_user_accounts` and `manage_user_service_accounts`, passing resolved vars to `manage_user.yml` for each entry; optionally manages `AllowUsers` once after all accounts are processed |
 | `tasks/manage_user.yml` | Per-entry wrapper — sequences validate, user, ssh, and sudo |
 | `tasks/validate.yml` | Asserts required fields are present |
 | `tasks/user.yml` | Ensures supplementary groups exist, then creates or removes the account via the `user` module |
 | `tasks/ssh.yml` | Configures the authorized key (skipped for service accounts) |
 | `tasks/sudo.yml` | Grants or removes `NOPASSWD` sudo access |
+| `tasks/add_sshd.yml` | Writes `/etc/ssh/sshd_config.d/allowusers.conf`; only runs when `manage_user_sshd_allowusers: true` |
+| `handlers/main.yml` | `Restart SSH` handler — restarts the `ssh` service when the `AllowUsers` drop-in changes |
 
 ### Creating or updating an account (`state: present`)
 
@@ -167,6 +188,7 @@ The role's tasks are split into discrete files:
 3. **User account** — creates or reconciles the account with the declared shell, home, comment, and groups. Password login is locked (`password_lock: true`). Service accounts are created as system accounts (`system: true`).
 4. **SSH authorized key** — writes the public key to `<home>/.ssh/authorized_keys` using an explicit path derived from `manage_user_home`. Skipped entirely for service accounts. If `ssh_key_exclusive: true`, all other keys in the file are removed. Using an explicit path means this task behaves correctly in `--check` mode even when the account does not yet exist on the target host.
 5. **Sudo access** — if `sudo: true`, writes `/etc/sudoers.d/<name>` validated with `visudo -cf` before placement. If `sudo: false`, removes any existing sudoers entry for the account.
+6. **AllowUsers** *(opt-in)* — after all accounts are processed, if `manage_user_sshd_allowusers: true`, writes `/etc/ssh/sshd_config.d/allowusers.conf` from `manage_user_allowusers_list` and notifies the `Restart SSH` handler if the file changes.
 
 ### Removing an account (`state: absent`)
 
@@ -239,3 +261,4 @@ Rules are defined in `.gitleaks.toml`, which extends the default gitleaks rulese
 - **Sudoers cleanup is explicit.** Setting `sudo: false` on a subsequent run actively removes `/etc/sudoers.d/<name>`. Sudo access is never silently left in place.
 - **SSH key exclusivity.** By default the role appends the declared key without touching others. Set `ssh_key_exclusive: true` on an account if it should only trust the declared key.
 - **Service accounts cannot log in interactively.** The default shell is `/usr/sbin/nologin` and no SSH key is configured, preventing both shell and key-based access.
+- **AllowUsers enforcement.** When `manage_user_sshd_allowusers: true`, a drop-in file restricts SSH access to exactly the accounts in `manage_user_allowusers_list`. Any account not in that list is blocked at the daemon level regardless of its authorized keys. Include bootstrap and provisioning accounts in the list or they will be locked out on the next sshd restart.

@@ -45,3 +45,10 @@
   loop: "{{ manage_user_service_accounts }}"
   loop_control:
     label: "{{ item.name }}"
+
+# Runs once after all accounts are processed — not per-user.
+# Opt-in via manage_sshd_allowusers: true; set allowusers_list explicitly in
+# your vars file to include every account that must be allowed SSH access.
+- name: Manage sshd AllowUsers
+  ansible.builtin.include_tasks: add_sshd.yml
+  when: manage_user_sshd_allowusers | bool
