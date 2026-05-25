@@ -46,9 +46,17 @@
   loop_control:
     label: "{{ item.name }}"
 
-# Runs once after all accounts are processed — not per-user.
-# Opt-in via manage_sshd_allowusers: true; set allowusers_list explicitly in
-# your vars file to include every account that must be allowed SSH access.
+# sshd drop-in tasks run once after all accounts are processed — not per-user.
+# init_sshd.yml runs first whenever any drop-in feature is enabled, ensuring
+# /etc/ssh/sshd_config.d/ exists and is included on all Ubuntu releases.
+- name: Initialise sshd drop-in directory
+  ansible.builtin.include_tasks: init_sshd.yml
+  when: manage_user_sshd_allowusers | bool or manage_user_sshd_crypto | bool
+
 - name: Manage sshd AllowUsers
   ansible.builtin.include_tasks: add_sshd.yml
   when: manage_user_sshd_allowusers | bool
+
+- name: Manage sshd crypto policy
+  ansible.builtin.include_tasks: add_sshd_crypto.yml
+  when: manage_user_sshd_crypto | bool

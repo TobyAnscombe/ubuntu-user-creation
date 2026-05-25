@@ -31,6 +31,12 @@ manage_user_accounts: []
 manage_user_sshd_allowusers: true
 manage_user_allowusers_extra: []
 
+# Crypto policy drop-in — writes /etc/ssh/sshd_config.d/crypto.conf with a
+# hardened set of Ciphers, KexAlgorithms, and MACs. All algorithms require
+# OpenSSH 7.3+; Ubuntu 18.04 ships 7.6 so all are supported. Set false to
+# leave the system defaults in place (e.g. if a separate policy tool manages this).
+manage_user_sshd_crypto: true
+
 # Non-interactive service accounts (no SSH key, nologin shell, system UID).
 # Each entry supports:
 #   name               (required) Account name

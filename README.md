@@ -43,8 +43,9 @@ These apply to every entry in `manage_user_accounts` and `manage_user_service_ac
 
 | Variable | Default | Description |
 |---|---|---|
-| `manage_user_sshd_allowusers` | `true` | Writes `/etc/ssh/sshd_config.d/allowusers.conf` and restarts SSH if the file changes. Set `false` to disable the drop-in entirely. |
+| `manage_user_sshd_allowusers` | `true` | Writes `/etc/ssh/sshd_config.d/allowusers.conf` and restarts SSH if the file changes. Set `false` to disable. |
 | `manage_user_allowusers_extra` | `[]` | Additional usernames to include in `AllowUsers` that are not managed by this role — typically the bootstrap or provisioning account used to run the playbook. |
+| `manage_user_sshd_crypto` | `true` | Writes `/etc/ssh/sshd_config.d/crypto.conf` with a hardened set of Ciphers, KexAlgorithms, and MACs. All algorithms are supported by OpenSSH 7.6 (Ubuntu 18.04+). Set `false` to leave the system cipher defaults in place. |
 
 The `AllowUsers` list is built automatically from every present account in `manage_user_accounts` that has not set `allow_ssh: false`. Accounts with `state: absent` are excluded automatically. `manage_user_allowusers_extra` entries are appended to that computed list.
 
@@ -187,8 +188,10 @@ The role's tasks are split into discrete files:
 | `tasks/user.yml` | Ensures supplementary groups exist, then creates or removes the account via the `user` module |
 | `tasks/ssh.yml` | Configures the authorized key (skipped for service accounts) |
 | `tasks/sudo.yml` | Grants or removes `NOPASSWD` sudo access |
+| `tasks/init_sshd.yml` | Ensures `/etc/ssh/sshd_config.d/` exists and is `Include`-d in `sshd_config`; called once before any drop-in task |
 | `tasks/add_sshd.yml` | Writes `/etc/ssh/sshd_config.d/allowusers.conf`; only runs when `manage_user_sshd_allowusers: true` |
-| `handlers/main.yml` | `Restart SSH` handler — restarts the `ssh` service when the `AllowUsers` drop-in changes |
+| `tasks/add_sshd_crypto.yml` | Writes `/etc/ssh/sshd_config.d/crypto.conf` with hardened Ciphers, KexAlgorithms, and MACs; validates with `sshd -t`; only runs when `manage_user_sshd_crypto: true` |
+| `handlers/main.yml` | `Restart SSH` handler — restarts the `ssh` service when any drop-in changes |
 
 ### Creating or updating an account (`state: present`)
 

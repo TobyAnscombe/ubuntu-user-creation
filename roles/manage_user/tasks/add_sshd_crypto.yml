@@ -1,0 +1,19 @@
+---
+- name: Configure sshd crypto policy via drop-in file
+  ansible.builtin.copy:
+    dest: /etc/ssh/sshd_config.d/crypto.conf
+    content: |
+      Ciphers aes128-ctr,aes192-ctr,aes256-ctr,chacha20-poly1305@openssh.com,aes256-gcm@openssh.com,aes128-gcm@openssh.com
+      KexAlgorithms curve25519-sha256@libssh.org,ecdh-sha2-nistp256,ecdh-sha2-nistp384,ecdh-sha2-nistp521,diffie-hellman-group-exchange-sha256
+      MACs hmac-sha2-512-etm@openssh.com,hmac-sha2-256-etm@openssh.com,hmac-sha2-512,hmac-sha2-256
+    owner: root
+    group: root
+    mode: "0600"
+  notify: Restart SSH
+
+# Validate the full sshd configuration (including all drop-ins) after writing.
+# sshd -t exits non-zero on any syntax or algorithm error, failing the play
+# before the handler can restart the daemon with a broken config.
+- name: Validate sshd configuration
+  ansible.builtin.command: sshd -t
+  changed_when: false
