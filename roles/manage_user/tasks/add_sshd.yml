@@ -1,3 +1,4 @@
+---
 - name: Manage AllowUsers via drop-in file
   copy:
     dest: /etc/ssh/sshd_config.d/allowusers.conf
