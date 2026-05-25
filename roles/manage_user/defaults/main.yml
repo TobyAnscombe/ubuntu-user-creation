@@ -35,7 +35,12 @@ manage_user_accounts: []
 # managed by this role (e.g. the bootstrap/provisioning account used to run
 # the playbook). These are appended to the auto-computed list.
 manage_user_sshd_allowusers: true
-manage_user_allowusers_extra: []
+# htb-admin is a break-glass account — it exists on the host independently of
+# this role (pre-provisioned, not managed here) and must always be permitted
+# to SSH in regardless of which regular accounts are present or absent.
+# Override to [] in host_vars/group_vars if a host has no break-glass account.
+manage_user_allowusers_extra:
+  - htb-admin
 
 # Crypto policy drop-in — writes /etc/ssh/sshd_config.d/crypto.conf with a
 # hardened set of Ciphers, KexAlgorithms, and MACs. All algorithms require
