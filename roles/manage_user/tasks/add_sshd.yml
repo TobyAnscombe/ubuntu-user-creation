@@ -1,8 +1,29 @@
 ---
+# Ubuntu 18.04 (Bionic) ships without /etc/ssh/sshd_config.d/ and without an
+# Include directive in sshd_config. Both are created here when absent so that
+# the drop-in file is actually read by sshd on all supported Ubuntu releases.
+# OpenSSH 7.3+ (Ubuntu 18.04 ships 7.6) supports Include natively.
+
+- name: Ensure sshd drop-in directory exists
+  ansible.builtin.file:
+    path: /etc/ssh/sshd_config.d
+    state: directory
+    owner: root
+    group: root
+    mode: "0755"
+
+- name: Ensure sshd_config includes drop-in directory
+  ansible.builtin.lineinfile:
+    path: /etc/ssh/sshd_config
+    line: "Include /etc/ssh/sshd_config.d/*.conf"
+    insertbefore: BOF
+    state: present
+  notify: Restart SSH
+
 - name: Manage AllowUsers via drop-in file
   ansible.builtin.copy:
     dest: /etc/ssh/sshd_config.d/allowusers.conf
     content: |
       AllowUsers {{ manage_user_allowusers_list | join(' ') }}
-    mode: '0600'
+    mode: "0600"
   notify: Restart SSH
