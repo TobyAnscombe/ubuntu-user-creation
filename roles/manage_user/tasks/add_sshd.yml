@@ -2,6 +2,10 @@
 # AllowUsers is managed directly in /etc/ssh/sshd_config via lineinfile.
 # Drop-in files are not used — OpenSSH's Include directive for sshd_config
 # requires 8.2+; Ubuntu 18.04 ships 7.6.
+#
+# validate: runs sshd -t against a temp copy of the proposed file BEFORE
+# the real sshd_config is touched. If validation fails the file is left
+# unchanged and the play exits immediately.
 
 - name: Build AllowUsers list from present managed accounts
   ansible.builtin.set_fact:
@@ -33,6 +37,7 @@
     regexp: '^#?AllowUsers'
     line: "AllowUsers {{ _manage_user_allowusers_computed | join(' ') }}"
     state: present
+    validate: /usr/sbin/sshd -t -f %s
   when: manage_user_sshd_allowusers | bool
   notify: Restart SSH
 
@@ -41,5 +46,6 @@
     path: /etc/ssh/sshd_config
     regexp: '^AllowUsers'
     state: absent
+    validate: /usr/sbin/sshd -t -f %s
   when: not manage_user_sshd_allowusers | bool
   notify: Restart SSH
