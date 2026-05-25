@@ -1,0 +1,8 @@
+- name: Manage AllowUsers via drop-in file
+  copy:
+    dest: /etc/ssh/sshd_config.d/allowusers.conf
+    content: |
+      AllowUsers {{ allowusers_list | join(' ') }}
+    mode: '0600'
+  notify: restart ssh
+``
