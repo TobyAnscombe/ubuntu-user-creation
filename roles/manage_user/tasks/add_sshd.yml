@@ -3,6 +3,11 @@
 # Drop-in files are not used — OpenSSH's Include directive for sshd_config
 # requires 8.2+; Ubuntu 18.04 ships 7.6.
 #
+# Users are only ever appended to AllowUsers, never removed by this role.
+# Any entry already in the line (added by another role, manually, or by a
+# previous run) is preserved. The computed list contributes only the names
+# that are not already present.
+#
 # validate: runs sshd -t against a temp copy of the proposed file BEFORE
 # the real sshd_config is touched. If validation fails the file is left
 # unchanged and the play exits immediately.
@@ -22,12 +27,43 @@
       }}
   when: manage_user_sshd_allowusers | bool
 
+- name: Read current sshd_config to check existing AllowUsers entries
+  ansible.builtin.slurp:
+    src: /etc/ssh/sshd_config
+  register: _sshd_config_raw
+  when: manage_user_sshd_allowusers | bool
+
+- name: Extract existing AllowUsers entries from sshd_config
+  ansible.builtin.set_fact:
+    _current_allowusers: >-
+      {{
+        (
+          (_sshd_config_raw.content | b64decode).split('\n')
+          | select('match', '^AllowUsers\s')
+          | list + ['']
+        )[0]
+        | regex_replace('^AllowUsers\s+', '')
+        | split
+        | select('ne', '')
+        | list
+      }}
+  when: manage_user_sshd_allowusers | bool
+
+- name: Build merged AllowUsers list (append only — existing entries preserved)
+  ansible.builtin.set_fact:
+    _manage_user_allowusers_merged: >-
+      {{
+        _current_allowusers
+        + (_manage_user_allowusers_computed | difference(_current_allowusers))
+      }}
+  when: manage_user_sshd_allowusers | bool
+
 - name: Assert AllowUsers list is not empty
   ansible.builtin.assert:
-    that: _manage_user_allowusers_computed | length > 0
+    that: _manage_user_allowusers_merged | length > 0
     fail_msg: >-
-      manage_user_sshd_allowusers is enabled but the computed AllowUsers list
-      is empty — writing it would block all SSH access. Add at least one
+      manage_user_sshd_allowusers is enabled but the AllowUsers list is
+      empty — writing it would block all SSH access. Add at least one
       present account, or set manage_user_sshd_allowusers: false to disable.
   when: manage_user_sshd_allowusers | bool
 
@@ -35,7 +71,7 @@
   ansible.builtin.lineinfile:
     path: /etc/ssh/sshd_config
     regexp: '^#?AllowUsers'
-    line: "AllowUsers {{ _manage_user_allowusers_computed | join(' ') }}"
+    line: "AllowUsers {{ _manage_user_allowusers_merged | join(' ') }}"
     state: present
     validate: /usr/sbin/sshd -t -f %s
   when: manage_user_sshd_allowusers | bool
