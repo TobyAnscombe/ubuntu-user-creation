@@ -1,17 +1,11 @@
 ---
 # path is derived from manage_user_home rather than looked up at runtime so that
 # this task works correctly in --check mode when the account does not yet exist.
-#
-# All keys in manage_user_ssh_public_keys are passed as a single newline-joined
-# string. The module checks each key individually and only appends those not
-# already present in authorized_keys — no key is written twice. When
-# manage_user_ssh_key_exclusive is true, any key in the file that is not in
-# the declared list is removed.
-- name: Configure SSH authorized keys
+- name: Configure SSH authorized key
   ansible.posix.authorized_key:
     user: "{{ manage_user_name }}"
     path: "{{ manage_user_home }}/.ssh/authorized_keys"
     state: present
-    key: "{{ manage_user_ssh_public_keys | join('\n') }}"
+    key: "{{ manage_user_ssh_public_key }}"
     exclusive: "{{ manage_user_ssh_key_exclusive }}"
   when: manage_user_state == 'present'

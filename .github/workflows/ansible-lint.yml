@@ -8,23 +8,7 @@ on:
 
 jobs:
   ansible-lint:
-    name: Lint Ansible
-    runs-on: ubuntu-latest
-
-    steps:
-      - name: Checkout
-        uses: actions/checkout@v4
-
-      - name: Set up Python
-        uses: actions/setup-python@v5
-        with:
-          python-version: "3.12"
-
-      - name: Install ansible-lint
-        run: pip install ansible-lint==26.1.0
-
-      - name: Install collections
-        run: ansible-galaxy collection install -r requirements.yml
-
-      - name: Run ansible-lint
-        run: ansible-lint
+    uses: TobyAnscombe/github-actions/.github/workflows/ansible-ci.yml@main
+    with:
+      ansible_lint_version: "26.1.0"
+      requirements_file: "requirements.yml"

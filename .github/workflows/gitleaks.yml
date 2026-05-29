@@ -1,4 +1,4 @@
-name: Gitleaks secret scan
+name: Secret scan
 
 on:
   push:
@@ -7,60 +7,7 @@ on:
     branches: ["**"]
 
 jobs:
-  gitleaks:
-    name: Scan for secrets
-    runs-on: ubuntu-latest
-    permissions:
-      security-events: write   # required to upload SARIF to the Security tab
-      contents: read
-
-    steps:
-      - name: Checkout
-        uses: actions/checkout@v4
-        with:
-          fetch-depth: 0        # full history so gitleaks can scan all commits
-
-      - name: Install gitleaks
-        run: |
-          VERSION=$(curl -s https://api.github.com/repos/gitleaks/gitleaks/releases/latest \
-            | grep '"tag_name"' | cut -d '"' -f 4)
-          curl -sSL "https://github.com/gitleaks/gitleaks/releases/download/${VERSION}/gitleaks_${VERSION#v}_linux_x64.tar.gz" \
-            | tar -xz gitleaks
-          sudo mv gitleaks /usr/local/bin/gitleaks
-
-      - name: Run gitleaks
-        id: gitleaks
-        run: |
-          gitleaks detect \
-            --config .gitleaks.toml \
-            --report-format sarif \
-            --report-path gitleaks-results.sarif \
-            --redact \
-            --exit-code 1
-        continue-on-error: true  # upload results even when leaks are found
-
-      - name: Create empty SARIF if no findings
-        if: always()
-        run: |
-          if [ ! -f gitleaks-results.sarif ]; then
-            cat > gitleaks-results.sarif << 'EOF'
-          {
-            "version": "2.1.0",
-            "runs": [{
-              "tool": {"driver": {"name": "Gitleaks", "rules": []}},
-              "results": []
-            }]
-          }
-          EOF
-          fi
-
-      - name: Upload SARIF to GitHub Security tab
-        if: always()
-        uses: github/codeql-action/upload-sarif@v3
-        with:
-          sarif_file: gitleaks-results.sarif
-          category: gitleaks
-
-      - name: Fail if leaks found
-        if: steps.gitleaks.outcome == 'failure'
-        run: exit 1
+  secret-scan:
+    uses: TobyAnscombe/github-actions/.github/workflows/gitleaks.yml@main
+    with:
+      gitleaks_config: ".gitleaks.toml"
