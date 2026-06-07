@@ -21,6 +21,9 @@ collections/
 .vault_password
 vault_password_file
 
+# Inventory — contains real hostnames/IPs; use inventory.ini.example as a template
+inventory.ini
+
 # Local inventory overrides (host-specific, not committed)
 inventory.local.ini
 inventory.local.yml
