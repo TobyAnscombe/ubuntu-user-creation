@@ -1,4 +1,4 @@
-name: Ansible Lint
+name: CI
 
 on:
   push:
@@ -7,6 +7,11 @@ on:
     branches: ["**"]
 
 jobs:
+  secret-scan:
+    uses: TobyAnscombe/github-actions/.github/workflows/gitleaks.yml@main
+    permissions:
+      security-events: write
+
   ansible-lint:
     uses: TobyAnscombe/github-actions/.github/workflows/ansible-ci.yml@main
     with:
