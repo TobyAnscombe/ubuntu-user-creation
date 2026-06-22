@@ -1,0 +1,4 @@
+profile: basic
+
+skip_list:
+  - var-naming[no-role-prefix]  # public API uses manage_user_* prefix; role name is ubuntu_manage_user
