@@ -1,4 +1,4 @@
-# manage_user
+# ubuntu_manage_user
 
 An Ansible role for creating and managing user accounts and service accounts on Ubuntu systems. Accounts are configured for SSH key authentication only — password login is explicitly locked. Sudo access is optional and granted without a password prompt via a dedicated sudoers drop-in file.
 
