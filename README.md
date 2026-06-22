@@ -31,13 +31,60 @@ All variables are defined in `defaults/main.yml`.
 
 ### Global defaults
 
-These apply to every entry in `manage_users` and `manage_user_service_accounts` unless overridden on the individual item.
+These apply to every entry in `manage_user_accounts` and `manage_user_service_accounts` unless overridden on the individual item.
 
 | Variable | Default | Description |
 |---|---|---|
 | `manage_user_default_home_base` | `/home` | Base path for home directories. The account home is `<base>/<name>` unless `home` is set on the item. |
 | `manage_user_default_shell` | `/bin/bash` | Login shell for regular user accounts. |
 | `manage_user_service_account_default_shell` | `/usr/sbin/nologin` | Login shell for service accounts. |
+
+### SSH daemon — AllowUsers
+
+| Variable | Default | Description |
+|---|---|---|
+| `manage_user_sshd_allowusers` | `true` | Writes `/etc/ssh/sshd_config.d/allowusers.conf` and restarts SSH if the file changes. Set `false` to disable. |
+| `manage_user_allowusers_extra` | `[]` | Additional usernames to include in `AllowUsers` that are not managed by this role — typically the bootstrap or provisioning account used to run the playbook. |
+| `manage_user_sshd_crypto` | `true` | Writes a hardened Ciphers, KexAlgorithms, and MACs block into `/etc/ssh/sshd_config`. All algorithms are supported by OpenSSH 7.6 (Ubuntu 18.04+). Set `false` to leave the system cipher defaults in place. |
+
+The `AllowUsers` list is built automatically from every present account in `manage_user_accounts` that has not set `allow_ssh: false`. Accounts with `state: absent` are excluded automatically. `manage_user_allowusers_extra` entries are appended to that computed list.
+
+To add the bootstrap account and block one user:
+
+```yaml
+manage_user_allowusers_extra:
+  - ubuntu          # provisioning account — not managed by this role
+
+manage_user_accounts:
+  - name: adm-alice
+    ssh_public_key: "ssh-ed25519 AAAA… alice@laptop"   # single key — shorthand
+    sudo: true      # included in AllowUsers automatically
+
+  - name: adm-bob
+    ssh_public_keys:                                    # multiple keys — list form
+      - "ssh-ed25519 AAAA… bob@laptop"
+      - "ssh-ed25519 AAAA… bob@desktop"
+
+  - name: svc-deploy
+    ssh_public_key: "ssh-ed25519 AAAA… deploy@ci"
+    allow_ssh: false  # key is deployed but sshd blocks login at the daemon level
+```
+
+`AllowUsers` is written directly into `/etc/ssh/sshd_config` via `lineinfile`. The role asserts the computed list is non-empty before writing — an empty `AllowUsers` would lock out all SSH access. The SSH daemon is only restarted when the line actually changes (handler-driven). The task runs once after all accounts are processed, not per-user. The full sshd configuration is validated with `sshd -t` after all changes are applied so the daemon is never restarted with a broken config.
+
+### External key management
+
+When SSH keys are managed by an external system such as CyberArk Privilege Cloud, set `manage_user_ssh_key_required: false`. This skips both the key-presence assertion in validation and the `authorized_key` task, allowing the role to create the OS user, configure sudo, and add the account to sshd `AllowUsers` without requiring a key to be declared.
+
+```yaml
+manage_user_ssh_key_required: false   # keys managed externally — e.g. cyberark-api-ssh-key-management
+manage_user_accounts:
+  - name: adm-example
+    state: present
+    sudo: true
+```
+
+When using the `cyberark-api-ssh-key-management` role, this variable is set automatically — the consuming playbook does not need to set it.
 
 ### `manage_user_accounts`
 
@@ -46,15 +93,17 @@ A list of interactive user accounts. Each item supports:
 | Key | Required | Default | Description |
 |---|---|---|---|
 | `name` | yes | — | Username |
-| `ssh_public_key` | yes | — | Full public key string (e.g. `ssh-ed25519 AAAA… user@host`) |
+| `ssh_public_keys` | one of these two | — | List of public key strings. Each key is checked individually and appended to `authorized_keys` only if not already present. Use this when a user has more than one key. |
+| `ssh_public_key` | one of these two | — | Single public key string — shorthand for the common case. Resolved to a one-item list internally. |
 | `state` | no | `present` | `present` to create/update, `absent` to remove |
 | `uid` | no | auto-assigned | Fixed UID for the account. Useful for consistency across hosts. |
 | `comment` | no | `""` | GECOS field — typically the user's full name |
 | `sudo` | no | `false` | Grant full `NOPASSWD` sudo via `/etc/sudoers.d/` |
+| `allow_ssh` | no | `true` | When `false`, excludes this account from the sshd `AllowUsers` drop-in. The account and its SSH key are still created normally; only the AllowUsers entry is omitted. |
 | `groups` | no | `[]` | Additional groups to assign |
 | `shell` | no | `manage_user_default_shell` | Override the login shell for this user |
 | `home` | no | `manage_user_default_home_base/<name>` | Override the home directory path |
-| `ssh_key_exclusive` | no | `false` | When `true`, removes any authorized keys not declared here |
+| `ssh_key_exclusive` | no | `false` | When `true`, any key in `authorized_keys` not in the declared list is removed |
 | `remove_home` | no | `false` | When `state: absent`, also delete the home directory |
 
 ### `manage_user_service_accounts`
@@ -153,20 +202,24 @@ The role's tasks are split into discrete files:
 
 | File | Responsibility |
 |---|---|
-| `tasks/main.yml` | Loops over `manage_user_accounts` and `manage_user_service_accounts`, passing resolved vars to `manage_user.yml` for each entry |
+| `tasks/main.yml` | Loops over `manage_user_accounts` and `manage_user_service_accounts`, passing resolved vars to `manage_user.yml` for each entry; optionally manages `AllowUsers` once after all accounts are processed |
 | `tasks/manage_user.yml` | Per-entry wrapper — sequences validate, user, ssh, and sudo |
 | `tasks/validate.yml` | Asserts required fields are present |
 | `tasks/user.yml` | Ensures supplementary groups exist, then creates or removes the account via the `user` module |
 | `tasks/ssh.yml` | Configures the authorized key (skipped for service accounts) |
 | `tasks/sudo.yml` | Grants or removes `NOPASSWD` sudo access |
+| `tasks/add_sshd.yml` | Manages `AllowUsers` directly in `/etc/ssh/sshd_config` via `lineinfile` |
+| `tasks/add_sshd_crypto.yml` | Manages the crypto policy block directly in `/etc/ssh/sshd_config` via `blockinfile` |
+| `handlers/main.yml` | `Restart SSH` handler — restarts the `ssh` service when sshd_config changes |
 
 ### Creating or updating an account (`state: present`)
 
 1. **Validation** — asserts `name` is non-empty; for regular users, also asserts `ssh_public_key` is provided.
 2. **Supplementary groups** — any group listed under `groups` that does not already exist on the host is created before the account is configured. This allows groups like `docker` to be declared even when the software that would normally create them (e.g. Docker) has not yet been installed.
 3. **User account** — creates or reconciles the account with the declared shell, home, comment, and groups. Password login is locked (`password_lock: true`). Service accounts are created as system accounts (`system: true`).
-4. **SSH authorized key** — writes the public key to `<home>/.ssh/authorized_keys` using an explicit path derived from `manage_user_home`. Skipped entirely for service accounts. If `ssh_key_exclusive: true`, all other keys in the file are removed. Using an explicit path means this task behaves correctly in `--check` mode even when the account does not yet exist on the target host.
+4. **SSH authorized keys** — each key in `ssh_public_keys` (or the single `ssh_public_key` resolved to a list) is checked against the existing `authorized_keys` file and appended only if not already present. No key is written twice. Skipped entirely for service accounts. When `ssh_key_exclusive: true`, any key in the file not in the declared list is removed. Using an explicit path derived from `manage_user_home` means this task behaves correctly in `--check` mode even when the account does not yet exist on the target host.
 5. **Sudo access** — if `sudo: true`, writes `/etc/sudoers.d/<name>` validated with `visudo -cf` before placement. If `sudo: false`, removes any existing sudoers entry for the account.
+6. **AllowUsers** *(on by default)* — after all accounts are processed, writes `/etc/ssh/sshd_config.d/allowusers.conf` with every present account that has not set `allow_ssh: false`, plus any entries in `manage_user_allowusers_extra`. Notifies the `Restart SSH` handler only if the file content changes. Disabled by setting `manage_user_sshd_allowusers: false`.
 
 ### Removing an account (`state: absent`)
 
@@ -239,3 +292,4 @@ Rules are defined in `.gitleaks.toml`, which extends the default gitleaks rulese
 - **Sudoers cleanup is explicit.** Setting `sudo: false` on a subsequent run actively removes `/etc/sudoers.d/<name>`. Sudo access is never silently left in place.
 - **SSH key exclusivity.** By default the role appends the declared key without touching others. Set `ssh_key_exclusive: true` on an account if it should only trust the declared key.
 - **Service accounts cannot log in interactively.** The default shell is `/usr/sbin/nologin` and no SSH key is configured, preventing both shell and key-based access.
+- **AllowUsers enforcement.** By default a drop-in file restricts SSH access to exactly the accounts in the computed `AllowUsers` list. Any account not in that list is blocked at the daemon level regardless of its authorized keys. Add bootstrap or provisioning accounts via `manage_user_allowusers_extra` or they will be locked out on the next sshd restart. The role asserts the list is non-empty before writing to prevent a lockout.

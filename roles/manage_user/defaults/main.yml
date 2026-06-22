@@ -7,17 +7,51 @@ manage_user_service_account_default_shell: /usr/sbin/nologin
 # Regular interactive user accounts.
 # Each entry supports:
 #   name               (required) Login name
-#   ssh_public_key     (required) Public key string
+#   ssh_public_keys    (required*) List of public key strings — each key is
+#                      checked individually and appended only if not already
+#                      present in authorized_keys
+#   ssh_public_key     (required*) Single public key string — shorthand when
+#                      only one key is needed; resolved to a one-item list
+#                      internally. Use ssh_public_keys when managing multiple.
+#                      * one of ssh_public_key or ssh_public_keys is required
 #   state              present | absent  (default: present)
 #   uid                integer           (default: auto-assigned)
 #   sudo               true | false      (default: false)
+#   allow_ssh          true | false      (default: true)  — set false to exclude
+#                      this account from the sshd AllowUsers drop-in
 #   groups             list              (default: [])
 #   shell                                (default: manage_user_default_shell)
 #   home                                 (default: manage_user_default_home_base/<name>)
 #   comment                              (default: "")
 #   ssh_key_exclusive  true | false      (default: false)
 #   remove_home        true | false      (default: false)
+# Set false when SSH keys are managed by an external system (e.g. CyberArk).
+# Skips both the key-presence assertion in validate.yml and the authorized_key
+# task in ssh.yml for accounts that have no ssh_public_key(s) defined.
+manage_user_ssh_key_required: true
+
 manage_user_accounts: []
+
+# SSH daemon AllowUsers management.
+# Enabled by default. The AllowUsers list is built automatically from every
+# present account in manage_user_accounts that has allow_ssh != false.
+# Set manage_user_sshd_allowusers: false to disable the drop-in entirely.
+# manage_user_allowusers_extra — additional accounts to include that are not
+# managed by this role (e.g. the bootstrap/provisioning account used to run
+# the playbook). These are appended to the auto-computed list.
+manage_user_sshd_allowusers: true
+# htb-admin is a break-glass account — it exists on the host independently of
+# this role (pre-provisioned, not managed here) and must always be permitted
+# to SSH in regardless of which regular accounts are present or absent.
+# Override to [] in host_vars/group_vars if a host has no break-glass account.
+manage_user_allowusers_extra:
+  - htb-admin
+
+# Crypto policy drop-in — writes /etc/ssh/sshd_config.d/crypto.conf with a
+# hardened set of Ciphers, KexAlgorithms, and MACs. All algorithms require
+# OpenSSH 7.3+; Ubuntu 18.04 ships 7.6 so all are supported. Set false to
+# leave the system defaults in place (e.g. if a separate policy tool manages this).
+manage_user_sshd_crypto: true
 
 # Non-interactive service accounts (no SSH key, nologin shell, system UID).
 # Each entry supports:
