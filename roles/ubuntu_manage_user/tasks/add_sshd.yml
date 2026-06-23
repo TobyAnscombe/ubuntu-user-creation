@@ -68,6 +68,7 @@
   when: manage_user_sshd_allowusers | bool
 
 - name: Set AllowUsers in sshd_config
+  become: yes
   ansible.builtin.lineinfile:
     path: /etc/ssh/sshd_config
     regexp: '^#?AllowUsers'
