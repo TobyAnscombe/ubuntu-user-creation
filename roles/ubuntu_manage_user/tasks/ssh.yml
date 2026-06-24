@@ -9,7 +9,7 @@
 # the declared list is removed.
 - name: Configure SSH authorized keys
   become: true
-  ansible.posix.authorized_key:
+  authorized_key:
     user: "{{ manage_user_name }}"
     path: "{{ manage_user_home }}/.ssh/authorized_keys"
     state: present
