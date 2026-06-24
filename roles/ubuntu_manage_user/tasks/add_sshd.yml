@@ -68,6 +68,7 @@
   when: manage_user_sshd_allowusers | bool
 
 - name: Set AllowUsers in sshd_config
+  become: true
   ansible.builtin.lineinfile:
     path: /etc/ssh/sshd_config
     regexp: '^#?AllowUsers'
@@ -78,6 +79,7 @@
   notify: Restart SSH
 
 - name: Remove AllowUsers from sshd_config
+  become: true
   ansible.builtin.lineinfile:
     path: /etc/ssh/sshd_config
     regexp: '^AllowUsers'

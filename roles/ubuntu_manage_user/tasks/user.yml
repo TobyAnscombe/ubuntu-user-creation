@@ -3,6 +3,7 @@
 # docker) can be declared even when the package that normally creates them has
 # not yet been installed on the host.
 - name: Ensure supplementary groups exist
+  become: true
   ansible.builtin.group:
     name: "{{ group_item }}"
     state: present
@@ -14,6 +15,7 @@
     - manage_user_groups | length > 0
 
 - name: Create or update user account
+  become: true
   ansible.builtin.user:
     name: "{{ manage_user_name }}"
     state: present
@@ -29,6 +31,7 @@
   when: manage_user_state == 'present'
 
 - name: Remove user account
+  become: true
   ansible.builtin.user:
     name: "{{ manage_user_name }}"
     state: absent

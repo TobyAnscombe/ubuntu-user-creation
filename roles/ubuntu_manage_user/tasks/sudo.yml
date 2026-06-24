@@ -3,6 +3,7 @@
 # sudo access is never silently retained from a previous run.
 # validate with visudo -cf before placement to avoid writing a broken sudoers file.
 - name: Grant passwordless sudo access
+  become: true
   ansible.builtin.copy:
     content: "{{ manage_user_name }} ALL=(ALL:ALL) NOPASSWD: ALL\n"
     dest: "/etc/sudoers.d/{{ manage_user_name }}"
@@ -15,6 +16,7 @@
     - manage_user_sudo | bool
 
 - name: Remove sudoers entry when sudo access is not required
+  become: true
   ansible.builtin.file:
     path: "/etc/sudoers.d/{{ manage_user_name }}"
     state: absent
@@ -23,6 +25,7 @@
     - not manage_user_sudo | bool
 
 - name: Remove sudoers entry for absent user
+  become: true
   ansible.builtin.file:
     path: "/etc/sudoers.d/{{ manage_user_name }}"
     state: absent

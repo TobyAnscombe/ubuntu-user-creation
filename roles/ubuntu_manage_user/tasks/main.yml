@@ -58,6 +58,7 @@
 # versions of this role before the 18.04 compatibility issue was discovered.
 # These tasks are idempotent and safe to run even if the files were never created.
 - name: Remove sshd_config Include directive added by earlier role versions
+  become: true
   ansible.builtin.lineinfile:
     path: /etc/ssh/sshd_config
     line: "Include /etc/ssh/sshd_config.d/*.conf"
@@ -65,11 +66,13 @@
   notify: Restart SSH
 
 - name: Remove sshd AllowUsers drop-in file added by earlier role versions
+  become: true
   ansible.builtin.file:
     path: /etc/ssh/sshd_config.d/allowusers.conf
     state: absent
 
 - name: Remove sshd crypto drop-in file added by earlier role versions
+  become: true
   ansible.builtin.file:
     path: /etc/ssh/sshd_config.d/crypto.conf
     state: absent
@@ -84,5 +87,6 @@
 # non-zero on syntax or algorithm errors, failing the play before the
 # Restart SSH handler fires — the daemon is never restarted with a broken config.
 - name: Validate sshd configuration
+  become: true
   ansible.builtin.command: sshd -t
   changed_when: false

@@ -10,6 +10,7 @@
 # unchanged and the play exits immediately.
 
 - name: Set sshd crypto policy in sshd_config
+  become: true
   ansible.builtin.blockinfile:
     path: /etc/ssh/sshd_config
     marker: "# {mark} ANSIBLE MANAGED BLOCK - sshd crypto policy"
@@ -23,6 +24,7 @@
   notify: Restart SSH
 
 - name: Remove sshd crypto policy block from sshd_config
+  become: true
   ansible.builtin.blockinfile:
     path: /etc/ssh/sshd_config
     marker: "# {mark} ANSIBLE MANAGED BLOCK - sshd crypto policy"
