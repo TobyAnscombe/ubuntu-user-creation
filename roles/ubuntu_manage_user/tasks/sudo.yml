@@ -6,7 +6,7 @@
   become: true
   ansible.builtin.copy:
     content: "{{ manage_user_name }} ALL=(ALL:ALL) NOPASSWD: ALL\n"
-    dest: "/etc/sudoers.d/{{ manage_user_name }}"
+    dest: "/etc/sudoers.d/{{ manage_user_name | replace('.', '_') }}"
     owner: root
     group: root
     mode: "0440"
@@ -18,7 +18,7 @@
 - name: Remove sudoers entry when sudo access is not required
   become: true
   ansible.builtin.file:
-    path: "/etc/sudoers.d/{{ manage_user_name }}"
+    path: "/etc/sudoers.d/{{ manage_user_name | replace('.', '_') }}"
     state: absent
   when:
     - manage_user_state == 'present'
@@ -27,6 +27,6 @@
 - name: Remove sudoers entry for absent user
   become: true
   ansible.builtin.file:
-    path: "/etc/sudoers.d/{{ manage_user_name }}"
+    path: "/etc/sudoers.d/{{ manage_user_name | replace('.', '_') }}"
     state: absent
   when: manage_user_state == 'absent'
