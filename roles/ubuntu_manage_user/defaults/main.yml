@@ -46,6 +46,7 @@ manage_user_sshd_allowusers: true
 # Override to [] in host_vars/group_vars if a host has no break-glass account.
 manage_user_allowusers_extra:
   - htb-admin
+  - htb-ssh-users
 
 # Crypto policy drop-in — writes /etc/ssh/sshd_config.d/crypto.conf with a
 # hardened set of Ciphers, KexAlgorithms, and MACs. All algorithms require
