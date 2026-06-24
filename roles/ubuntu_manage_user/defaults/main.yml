@@ -46,6 +46,11 @@ manage_user_sshd_allowusers: true
 # Override to [] in host_vars/group_vars if a host has no break-glass account.
 manage_user_allowusers_extra:
   - htb-admin
+
+# SSH daemon AllowGroups management.
+# Groups listed here are appended to AllowGroups in sshd_config (append-only —
+# existing entries are preserved). Set to [] to skip AllowGroups management.
+manage_user_allowgroups:
   - htb-ssh-users
 
 # Crypto policy drop-in — writes /etc/ssh/sshd_config.d/crypto.conf with a
