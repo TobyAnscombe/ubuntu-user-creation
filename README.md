@@ -39,12 +39,13 @@ These apply to every entry in `manage_user_accounts` and `manage_user_service_ac
 | `manage_user_default_shell` | `/bin/bash` | Login shell for regular user accounts. |
 | `manage_user_service_account_default_shell` | `/usr/sbin/nologin` | Login shell for service accounts. |
 
-### SSH daemon — AllowUsers
+### SSH daemon — AllowUsers and AllowGroups
 
 | Variable | Default | Description |
 |---|---|---|
-| `manage_user_sshd_allowusers` | `true` | Writes `/etc/ssh/sshd_config.d/allowusers.conf` and restarts SSH if the file changes. Set `false` to disable. |
+| `manage_user_sshd_allowusers` | `true` | Manages the `AllowUsers` directive in `/etc/ssh/sshd_config` and restarts SSH if the line changes. Set `false` to disable. |
 | `manage_user_allowusers_extra` | `[]` | Additional usernames to include in `AllowUsers` that are not managed by this role — typically the bootstrap or provisioning account used to run the playbook. |
+| `manage_user_allowgroups` | `[]` | Groups to append to the `AllowGroups` directive in `/etc/ssh/sshd_config`. Append-only — existing entries are preserved. Set in your playbook vars rather than here; group names are often internal and should not live in a public role. Set to `[]` to skip `AllowGroups` management entirely. |
 | `manage_user_sshd_crypto` | `true` | Writes a hardened Ciphers, KexAlgorithms, and MACs block into `/etc/ssh/sshd_config`. All algorithms are supported by OpenSSH 7.6 (Ubuntu 18.04+). Set `false` to leave the system cipher defaults in place. |
 
 The `AllowUsers` list is built automatically from every present account in `manage_user_accounts` that has not set `allow_ssh: false`. Accounts with `state: absent` are excluded automatically. `manage_user_allowusers_extra` entries are appended to that computed list.
@@ -208,7 +209,7 @@ The role's tasks are split into discrete files:
 | `tasks/user.yml` | Ensures supplementary groups exist, then creates or removes the account via the `user` module |
 | `tasks/ssh.yml` | Configures the authorized key (skipped for service accounts) |
 | `tasks/sudo.yml` | Grants or removes `NOPASSWD` sudo access |
-| `tasks/add_sshd.yml` | Manages `AllowUsers` directly in `/etc/ssh/sshd_config` via `lineinfile` |
+| `tasks/add_sshd.yml` | Manages `AllowUsers` and `AllowGroups` directly in `/etc/ssh/sshd_config` via `lineinfile` |
 | `tasks/add_sshd_crypto.yml` | Manages the crypto policy block directly in `/etc/ssh/sshd_config` via `blockinfile` |
 | `handlers/main.yml` | `Restart SSH` handler — restarts the `ssh` service when sshd_config changes |
 
@@ -219,7 +220,7 @@ The role's tasks are split into discrete files:
 3. **User account** — creates or reconciles the account with the declared shell, home, comment, and groups. Password login is locked (`password_lock: true`). Service accounts are created as system accounts (`system: true`).
 4. **SSH authorized keys** — each key in `ssh_public_keys` (or the single `ssh_public_key` resolved to a list) is checked against the existing `authorized_keys` file and appended only if not already present. No key is written twice. Skipped entirely for service accounts. When `ssh_key_exclusive: true`, any key in the file not in the declared list is removed. Using an explicit path derived from `manage_user_home` means this task behaves correctly in `--check` mode even when the account does not yet exist on the target host.
 5. **Sudo access** — if `sudo: true`, writes `/etc/sudoers.d/<name>` validated with `visudo -cf` before placement. If `sudo: false`, removes any existing sudoers entry for the account.
-6. **AllowUsers** *(on by default)* — after all accounts are processed, writes `/etc/ssh/sshd_config.d/allowusers.conf` with every present account that has not set `allow_ssh: false`, plus any entries in `manage_user_allowusers_extra`. Notifies the `Restart SSH` handler only if the file content changes. Disabled by setting `manage_user_sshd_allowusers: false`.
+6. **AllowUsers / AllowGroups** *(on by default)* — after all accounts are processed, updates the `AllowUsers` directive directly in `/etc/ssh/sshd_config` to include every present account that has not set `allow_ssh: false`, plus any entries in `manage_user_allowusers_extra`. If `manage_user_allowgroups` is non-empty, also manages the `AllowGroups` directive. Both directives are append-only — existing entries are preserved. A `sshd -t` validation runs before any write. The `Restart SSH` handler fires only when a line actually changes. Disabled by setting `manage_user_sshd_allowusers: false`.
 
 ### Removing an account (`state: absent`)
 
@@ -292,4 +293,4 @@ Rules are defined in `.gitleaks.toml`, which extends the default gitleaks rulese
 - **Sudoers cleanup is explicit.** Setting `sudo: false` on a subsequent run actively removes `/etc/sudoers.d/<name>`. Sudo access is never silently left in place.
 - **SSH key exclusivity.** By default the role appends the declared key without touching others. Set `ssh_key_exclusive: true` on an account if it should only trust the declared key.
 - **Service accounts cannot log in interactively.** The default shell is `/usr/sbin/nologin` and no SSH key is configured, preventing both shell and key-based access.
-- **AllowUsers enforcement.** By default a drop-in file restricts SSH access to exactly the accounts in the computed `AllowUsers` list. Any account not in that list is blocked at the daemon level regardless of its authorized keys. Add bootstrap or provisioning accounts via `manage_user_allowusers_extra` or they will be locked out on the next sshd restart. The role asserts the list is non-empty before writing to prevent a lockout.
+- **AllowUsers enforcement.** By default the role manages the `AllowUsers` directive in `/etc/ssh/sshd_config`, restricting SSH access to exactly the accounts in the computed list. Any account not in that list is blocked at the daemon level regardless of its authorized keys. Add bootstrap or provisioning accounts via `manage_user_allowusers_extra` or they will be locked out on the next sshd restart. The role asserts the list is non-empty before writing to prevent a lockout. If your environment also uses `AllowGroups`, set `manage_user_allowgroups` in your playbook vars — accounts must be members of a listed group or sshd will block them regardless of `AllowUsers`.
