@@ -13,6 +13,3 @@
 
 - name: Configure sudo access
   ansible.builtin.include_tasks: sudo.yml
-
-- name: Allow SSH access
-  ansible.builtin.include_tasks: add_sshd.yml
