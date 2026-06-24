@@ -1,5 +1,17 @@
 ---
+# async: 1 / poll: 0 fires the restart in the background so Ansible doesn't
+# wait on the same connection it just killed. wait_for_connection then blocks
+# until the daemon is back and accepting connections before the play continues.
 - name: Restart SSH
   ansible.builtin.service:
     name: ssh
     state: restarted
+  async: 1
+  poll: 0
+  become: true
+
+- name: Wait for SSH to recover
+  ansible.builtin.wait_for_connection:
+    delay: 5
+    timeout: 60
+  listen: Restart SSH
