@@ -50,8 +50,8 @@ manage_user_allowusers_extra:
 # SSH daemon AllowGroups management.
 # Groups listed here are appended to AllowGroups in sshd_config (append-only —
 # existing entries are preserved). Set to [] to skip AllowGroups management.
-manage_user_allowgroups:
-  - htb-ssh-users
+# Set this in your playbook vars, not here — group names may be internal.
+manage_user_allowgroups: []
 
 # Crypto policy drop-in — writes /etc/ssh/sshd_config.d/crypto.conf with a
 # hardened set of Ciphers, KexAlgorithms, and MACs. All algorithms require
